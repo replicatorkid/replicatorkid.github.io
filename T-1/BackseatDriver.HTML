@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backseat Driver</title>
+
+    <style>
+        body {
+            margin: 0;
+            background-color: white;
+            font-family: Arial, sans-serif;
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
+
+            height: 100vh;
+            text-align: center;
+        }
+
+        #message {
+            font-size: 48px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="message">Requesting GPS...</div>
+
+    <script>
+
+        const message = document.getElementById("message");
+
+        function gpsSuccess(position)
+        {
+            message.textContent = "GPS Connected";
+        }
+
+        function gpsError(error)
+        {
+            switch(error.code)
+            {
+                case error.PERMISSION_DENIED:
+                    message.textContent = "GPS Permission Denied";
+                    break;
+
+                case error.POSITION_UNAVAILABLE:
+                    message.textContent = "GPS Unavailable";
+                    break;
+
+                case error.TIMEOUT:
+                    message.textContent = "GPS Timeout";
+                    break;
+
+                default:
+                    message.textContent = "GPS Error";
+                    break;
+            }
+        }
+
+        if ("geolocation" in navigator)
+        {
+            navigator.geolocation.getCurrentPosition(
+                gpsSuccess,
+                gpsError,
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                }
+            );
+        }
+        else
+        {
+            message.textContent = "Geolocation Not Supported";
+        }
+
+    </script>
+
+</body>
+</html>
