@@ -40,33 +40,36 @@ const button = document.getElementById("startBtn");
 // 1. ZONE DATA (your map layer)
 // -----------------------------
 const zones = [
-    <!-- home -->
-    {
-        lat: 43.7499,
-        lon: -87.9847,
-        radius: 80, // meters (~260 ft)
-        message: "Arrived"
-    }
-    <!-- Franklin and Plymouth -->
-    {
-        lat: 43.74971,
-        lon: -87.98502,
-        radius: 80, // meters (~260 ft)
-        message: "West"
-    }
-    <!-- Western, Factory, Plymouth -->
-    {
-        lat: 43.75085,
-        lon: -87.98503,
-        radius: 120, // meters (~260 ft)
-        message: "North-east"
-    }
-    <!-- Plymouth, Main, FonDuLac -->
-    {
-        lat: 43.74868,
-        lon: -87.98500,
-        radius: 80, // meters (~260 ft)
-        message: "South-east"
+    // home
+    { 
+        lat: 43.7499, 
+        lon: -87.9847, 
+        radius: 80, // meters (~260 ft) 
+        message: "Arrived" 
+    }, // <-- Added comma here
+    
+    // Franklin and Plymouth
+    { 
+        lat: 43.74971, 
+        lon: -87.98502, 
+        radius: 80, // meters (~260 ft) 
+        message: "West" 
+    }, // <-- Added comma here
+    
+    // Western, Factory, Plymouth
+    { 
+        lat: 43.75085, 
+        lon: -87.98503, 
+        radius: 120, // meters (~390 ft) 
+        message: "North-east" 
+    }, // <-- Added comma here
+    
+    // Plymouth, Main, FonDuLac
+    { 
+        lat: 43.74868, 
+        lon: -87.98500, 
+        radius: 80, // meters (~260 ft) 
+        message: "South-east" 
     }
 ];
 
