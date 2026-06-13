@@ -106,40 +106,21 @@
 
             setInterval(() =>
             {
-                navigator.geolocation.getCurrentPosition((pos) =>
-                {
-                    const lat = pos.coords.latitude;
-                    const lon = pos.coords.longitude;
-
-                    zones.forEach((z, i) =>
-                    {
-                        const d = distanceMeters(lat, lon, z.lat, z.lon);
-
-                        if (d <= z.radius)
-                        {
-                            const now = Date.now();
-
-                            if (!lastSpoken[i] || now - lastSpoken[i] > COOLDOWN_MS)
-                            {
-                                message.textContent = z.message;
-                                speak(z.message);
-                                lastSpoken[i] = now;
-                            }
-                        }
-                    });
-
+                navigator.geolocation.watchPosition(
+                   (position) => {
+                    message.textContent = "GPS Connected";
+                    console.log(position.coords.latitude, position.coords.longitude);
                 },
-                (err) =>
-                {
-                    message.textContent = "GPS Error";
+                (error) => {
+                    message.textContent = "GPS Error: " + error.code;
+                    console.log(error);
                 },
                 {
                     enableHighAccuracy: true,
                     maximumAge: 0,
                     timeout: 10000
-                });
-
-            }, 3000);
+                }
+            );
         }
 
         // -----------------------------
