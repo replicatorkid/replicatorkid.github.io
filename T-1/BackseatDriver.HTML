@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Backseat Driver</title>
-
     <style>
         body {
             margin: 0;
@@ -17,137 +16,127 @@
             height: 100vh;
             text-align: center;
         }
-
         #message {
             font-size: 48px;
             font-weight: bold;
             margin-bottom: 20px;
         }
-
         button {
             font-size: 28px;
             padding: 16px 24px;
         }
     </style>
 </head>
-
 <body>
 
-    <div id="message">Tap to Start</div>
-    <button id="startBtn">Begin Navigation</button>
+<div id="message">Tap to Start</div>
+<button id="startBtn">Begin Navigation</button>
 
-    <script>
+<script>
+const message = document.getElementById("message");
+const button = document.getElementById("startBtn");
 
-        const message = document.getElementById("message");
-        const button = document.getElementById("startBtn");
+// -----------------------------
+// 1. ZONE DATA (your map layer)
+// -----------------------------
+const zones = [
+    {
+        lat: 43.7499,
+        lon: -87.9847,
+        radius: 80, // meters (~260 ft)
+        message: "NORTH"
+    }
+];
 
-        // -----------------------------
-        // 1. ZONE DATA (your map layer)
-        // -----------------------------
-        const zones = [
-            {
-                lat: 43.7499,
-                lon: -87.9847,
-                radius: 80, // meters (~260 ft)
-                message: "NORTH"
+// -----------------------------
+// 2. STATE TRACKING
+// -----------------------------
+let lastSpoken = {};
+const COOLDOWN_MS = 3000;
+let watchId = null; 
+
+// -----------------------------
+// 3. DISTANCE FUNCTION
+// -----------------------------
+function distanceMeters(lat1, lon1, lat2, lon2) {
+    const R = 6371e3;
+    const toRad = x => x * Math.PI / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+}
+
+// -----------------------------
+// 4. TEXT TO SPEECH
+// -----------------------------
+function speak(text) {
+    // Clear any previous hung utterances in iOS Safari queues
+    window.speechSynthesis.cancel(); 
+    
+    const msg = new SpeechSynthesisUtterance(text);
+    msg.rate = 1;
+    msg.pitch = 1;
+    
+    // Small timeout ensures the cancel event completes before speaking
+    setTimeout(() => {
+        window.speechSynthesis.speak(msg);
+    }, 50);
+}
+
+// -----------------------------
+// 5. MAIN GPS LOOP
+// -----------------------------
+function startTracking() {
+    if (watchId !== null) return;
+    
+    message.textContent = "Tracking GPS...";
+    button.style.display = "none";
+    
+    watchId = navigator.geolocation.watchPosition((pos) => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        
+        // Output coordinates to the screen to confirm live tracking is processing
+        message.textContent = `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
+        
+        zones.forEach((z, i) => {
+            const d = distanceMeters(lat, lon, z.lat, z.lon);
+            if (d <= z.radius) {
+                const now = Date.now();
+                if (!lastSpoken[i] || now - lastSpoken[i] > COOLDOWN_MS) {
+                    message.textContent = z.message;
+                    speak(z.message);
+                    lastSpoken[i] = now;
+                }
             }
-        ];
-
-        // -----------------------------
-        // 2. STATE TRACKING
-        // -----------------------------
-        let lastSpoken = {};
-        const COOLDOWN_MS = 3000;
-
-        let watchActive = false;
-
-        // -----------------------------
-        // 3. DISTANCE FUNCTION
-        // -----------------------------
-        function distanceMeters(lat1, lon1, lat2, lon2)
-        {
-            const R = 6371e3;
-            const toRad = x => x * Math.PI / 180;
-
-            const dLat = toRad(lat2 - lat1);
-            const dLon = toRad(lon2 - lon1);
-
-            const a =
-                Math.sin(dLat/2) * Math.sin(dLat/2) +
-                Math.cos(toRad(lat1)) *
-                Math.cos(toRad(lat2)) *
-                Math.sin(dLon/2) * Math.sin(dLon/2);
-
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-
-            return R * c;
-        }
-
-        // -----------------------------
-        // 4. TEXT TO SPEECH
-        // -----------------------------
-        function speak(text)
-        {
-            const msg = new SpeechSynthesisUtterance(text);
-            msg.rate = 1;
-            msg.pitch = 1;
-            window.speechSynthesis.speak(msg);
-        }
-
-        // -----------------------------
-        // 5. MAIN GPS LOOP
-        // -----------------------------
-        function startTracking()
-        {
-            if (watchActive) return;
-            watchActive = true;
-
-            message.textContent = "Tracking GPS...";
-
-            setInterval(() =>
-            {
-                navigator.geolocation.watchPosition(
-                   (position) => {
-                    message.textContent = "GPS Connected";
-                    console.log(position.coords.latitude, position.coords.longitude);
-                },
-                (error) => {
-                    message.textContent = "GPS Error: " + error.code;
-                    console.log(error);
-                },
-                {
-                    enableHighAccuracy: true,
-                    maximumAge: 0,
-                    timeout: 10000
-                }
-            );
-        }
-
-        // -----------------------------
-        // 6. USER START (iOS required)
-        // -----------------------------
-        button.addEventListener("click", () =>
-        {
-            message.textContent = "Requesting GPS...";
-
-            navigator.geolocation.getCurrentPosition(
-                () =>
-                {
-                    message.textContent = "GPS Connected";
-                    button.style.display = "none";
-                    startTracking();
-                },
-                (err) =>
-                {
-                    message.textContent = "GPS Permission Denied";
-                },
-                {
-                    enableHighAccuracy: true
-                }
-            );
         });
+    }, (err) => {
+        // Output specific error codes for easier mobile debugging
+        message.textContent = `GPS Error: ${err.message} (Code ${err.code})`;
+    }, {
+        enableHighAccuracy: true,
+        maximumAge: 0, 
+        timeout: 10000
+    });
+}
 
-    </script>
+// -----------------------------
+// 6. USER START (Optimized for iOS)
+// -----------------------------
+button.addEventListener("click", () => {
+    message.textContent = "Initializing...";
+    
+    // 1. Force Speech API to unlock immediately inside the synchronous click path
+    speak("Navigation initiated");
+    
+    // 2. Fire tracking immediately instead of nesting it to bypass Chrome iOS context hanging
+    startTracking();
+});
+</script>
 
 </body>
 </html>
