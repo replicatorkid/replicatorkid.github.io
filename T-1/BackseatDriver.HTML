@@ -28,15 +28,24 @@
 
 <body>
 
-    <div id="message">Requesting GPS...</div>
+    <div id="message">Tap to start</div>
+
+    <button id="startBtn" style="
+        font-size: 32px;
+        padding: 20px;
+        margin-top: 20px;
+    ">
+        Start GPS
+    </button>
 
     <script>
-
         const message = document.getElementById("message");
+        const button = document.getElementById("startBtn");
 
         function gpsSuccess(position)
         {
             message.textContent = "GPS Connected";
+            button.style.display = "none";
         }
 
         function gpsError(error)
@@ -46,23 +55,22 @@
                 case error.PERMISSION_DENIED:
                     message.textContent = "GPS Permission Denied";
                     break;
-
                 case error.POSITION_UNAVAILABLE:
                     message.textContent = "GPS Unavailable";
                     break;
-
                 case error.TIMEOUT:
                     message.textContent = "GPS Timeout";
                     break;
-
                 default:
                     message.textContent = "GPS Error";
                     break;
             }
         }
 
-        if ("geolocation" in navigator)
+        button.addEventListener("click", function()
         {
+            message.textContent = "Requesting GPS...";
+
             navigator.geolocation.getCurrentPosition(
                 gpsSuccess,
                 gpsError,
@@ -72,12 +80,7 @@
                     maximumAge: 0
                 }
             );
-        }
-        else
-        {
-            message.textContent = "Geolocation Not Supported";
-        }
-
+        });
     </script>
 
 </body>
