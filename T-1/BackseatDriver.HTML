@@ -40,37 +40,36 @@ const button = document.getElementById("startBtn");
 // 1. ZONE DATA (your map layer)
 // -----------------------------
 const zones = [
-    // home
+    // ----- Plymouth Street -----
     { 
-        lat: 43.7499, 
-        lon: -87.9847, 
-        radius: 15
+        // Home
+        lat: 43.749868, 
+        lon: -87.984710, 
+        radius: 10
         message: "Arrived" 
-    }, // <-- Added comma here
-    
-    // Franklin and Plymouth
+    },
     { 
-        lat: 43.74971, 
-        lon: -87.98502, 
+        // Plymouth and Western + Factory and Western
+        lat: 43.750868, 
+        lon: -87.985088, 
+        radius: 30
+        message: "South-west" 
+    },
+    { 
+        // Plymouth and Franklin
+        lat: 43.749728, 
+        lon: -87.985051, 
         radius: 15
         message: "West" 
-    }, // <-- Added comma here
-    
-    // Western, Factory, Plymouth
+    },
     { 
-        lat: 43.75085, 
-        lon: -87.98503, 
-        radius: 30
-        message: "North-east" 
-    }, // <-- Added comma here
-    
-    // Plymouth, Main, FonDuLac
-    { 
-        lat: 43.74868, 
-        lon: -87.98500, 
+        // Plymouth and Main + FonDuLac
+        lat: 43.748686, 
+        lon: -87.985119, 
         radius: 30
         message: "South-east" 
     }
+    // ----- Park Street -----
 ];
 
 // -----------------------------
