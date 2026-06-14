@@ -3,288 +3,121 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-
     <title>Leaflet Map Layout</title>
-
-    <link
-        rel="stylesheet"
-        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-        crossorigin=""
-    />
-
+    <link rel="stylesheet" href="https://unpkg.com" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <style>
-        html, body {
-            margin: 0;
-            padding: 0;
-            height: 100%;
-        }
-
-        #container {
-            display: flex;
-            height: 100vh;
-            width: 100vw;
-        }
-
-        #map {
-            width: 80%;
-            height: 100%;
-        }
-
-        #sidebar {
-            width: 20%;
-            height: 100%;
-            box-sizing: border-box;
-            padding: 1rem;
-            border-left: 1px solid #ccc;
-            overflow-y: auto;
-            font-family: Arial, sans-serif;
-        }
-
-        #sidebar h2 {
-            margin-top: 0;
-        }
+        html, body { margin: 0; padding: 0; height: 100%; }
+        #container { display: flex; height: 100vh; width: 100vw; }
+        #map { width: 80%; height: 100%; }
+        #sidebar { width: 20%; height: 100%; box-sizing: border-box; padding: 1rem; border-left: 1px solid #ccc; overflow-y: auto; font-family: Arial, sans-serif; }
+        #sidebar h2 { margin-top: 0; }
     </style>
 </head>
 <body>
-
 <div id="container">
     <div id="map"></div>
-
     <div id="sidebar">
-         <h2>Zone Data</h2>
-        
-        <textarea id="zoneInput" style="
-            width:100%;
-            height:250px;
-            box-sizing:border-box;
-        ">
-        const zones = [
-            {
-                ID: 1,
-                lat: 43.749868,
-                lon: -87.984710,
-                radius: 10,
-                message: "Arrived"
-            },
-            {
-                ID: 2,
-                lat: 43.750868,
-                lon: -87.985088,
-                radius: 30,
-                message: "South-west"
-            },
-            {
-                ID: 3,
-                lat: 43.749728,
-                lon: -87.985051,
-                radius: 15,
-                message: "West"
-            }
-        ];
-        </textarea>
-        
-        <button onclick="loadZones()">
-            Draw Zones
-        </button>
+        <h2>Zone Data</h2>
+        <textarea id="zoneInput" style="width:100%; height:250px; box-sizing:border-box;">const zones = [
+  { ID: 1, lat: 43.749868, lon: -87.984710, radius: 10, message: "Arrived" },
+  { ID: 2, lat: 43.750868, lon: -87.985088, radius: 30, message: "South-west" },
+  { ID: 3, lat: 43.749728, lon: -87.985051, radius: 15, message: "West" }
+];</textarea>
+        <button onclick="loadZones()" style="margin-top: 10px; width: 100%; padding: 8px;">Draw Zones</button>
     </div>
 </div>
 
-<script
-    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-    crossorigin=""
-></script>
-
+<script src="https://unpkg.com" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="" ></script>
 <script>
-    const map = L.map('map').setView([43.739051, -87.957069], 13);
+    // Centered map zoom closer to the actual zone coordinates
+    const map = L.map('map').setView([43.750, -87.985], 16);
+    
+    L.tileLayer('https://openstreetmap.org{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
 
-    L.tileLayer(
-        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-        {
-            maxZoom: 19,
-            attribution: '&copy; OpenStreetMap contributors'
-        }
-    ).addTo(map);
+    L.marker([43.749868, -87.984710]).addTo(map).bindPopup('Starting Location');
 
-    L.marker([43.739051, -87.957069])
-        .addTo(map)
-        .bindPopup('Starting Location');
+    const zoneLayers = [];
+    const directionAngles = { N: 0, NE: 45, E: 90, SE: 135, S: 180, SW: 225, W: 270, NW: 315 };
 
-const zoneLayers = [];
+    function normalizeDirection(text) {
+        if (!text) return null;
+        const cleaned = text.trim().toUpperCase().replace(/-/g, '').replace(/\s+/g, '');
+        const lookup = {
+            NORTH: "N", SOUTH: "S", EAST: "E", WEST: "W", 
+            NORTHEAST: "NE", NORTHWEST: "NW", SOUTHEAST: "SE", SOUTHWEST: "SW",
+            N: "N", S: "S", E: "E", W: "W", NE: "NE", NW: "NW", SE: "SE", SW: "SW"
+        };
+        return lookup[cleaned] || null;
+    }
 
-const directionAngles = {
-    N: 0,
-    NE: 45,
-    E: 90,
-    SE: 135,
-    S: 180,
-    SW: 225,
-    W: 270,
-    NW: 315
-};
+    function destinationPoint(lat, lon, bearingDeg, distanceMeters) {
+        const R = 6378137;
+        const lat1 = lat * Math.PI / 180;
+        const lon1 = lon * Math.PI / 180;
+        const brng = bearingDeg * Math.PI / 180;
+        const lat2 = Math.asin(Math.sin(lat1) * Math.cos(distanceMeters / R) + Math.cos(lat1) * Math.sin(distanceMeters / R) * Math.cos(brng));
+        const lon2 = lon1 + Math.atan2(Math.sin(brng) * Math.sin(distanceMeters / R) * Math.cos(lat1), Math.cos(distanceMeters / R) - Math.sin(lat1) * Math.sin(lat2));
+        return [lat2 * 180 / Math.PI, lon2 * 180 / Math.PI];
+    }
 
-function normalizeDirection(text) {
-
-    if (!text) return null;
-
-    const cleaned = text
-        .trim()
-        .toUpperCase()
-        .replace(/-/g, '')
-        .replace(/\s+/g, '');
-
-    const lookup = {
-        NORTH: "N",
-        SOUTH: "S",
-        EAST: "E",
-        WEST: "W",
-        NORTHEAST: "NE",
-        NORTHWEST: "NW",
-        SOUTHEAST: "SE",
-        SOUTHWEST: "SW",
-        N: "N",
-        S: "S",
-        E: "E",
-        W: "W",
-        NE: "NE",
-        NW: "NW",
-        SE: "SE",
-        SW: "SW"
-    };
-
-    return lookup[cleaned] || null;
-}
-
-function destinationPoint(lat, lon, bearingDeg, distanceMeters) {
-
-    const R = 6378137;
-
-    const lat1 = lat * Math.PI / 180;
-    const lon1 = lon * Math.PI / 180;
-    const brng = bearingDeg * Math.PI / 180;
-
-    const lat2 = Math.asin(
-        Math.sin(lat1) * Math.cos(distanceMeters / R) +
-        Math.cos(lat1) * Math.sin(distanceMeters / R) * Math.cos(brng)
-    );
-
-    const lon2 = lon1 + Math.atan2(
-        Math.sin(brng) * Math.sin(distanceMeters / R) * Math.cos(lat1),
-        Math.cos(distanceMeters / R) - Math.sin(lat1) * Math.sin(lat2)
-    );
-
-    return [
-        lat2 * 180 / Math.PI,
-        lon2 * 180 / Math.PI
-    ];
-}
-
-const reticleIcon = L.divIcon({
-    className: '',
-    html: `
-        <div style="
-            width:12px;
-            height:12px;
-            position:relative;
-        ">
-            <div style="
-                position:absolute;
-                left:5px;
-                top:0;
-                width:2px;
-                height:12px;
-                background:black;
-            "></div>
-            <div style="
-                position:absolute;
-                left:0;
-                top:5px;
-                width:12px;
-                height:2px;
-                background:black;
-            "></div>
-        </div>
-    `,
-    iconSize: [12,12],
-    iconAnchor: [6,6]
-});
-
-function clearZones() {
-
-    zoneLayers.forEach(layer => {
-        map.removeLayer(layer);
+    const reticleIcon = L.divIcon({
+        className: '',
+        html: `<div style="width:12px; height:12px; position:relative;">
+                 <div style="position:absolute; left:5px; top:0; width:2px; height:12px; background:black;"></div>
+                 <div style="position:absolute; left:0; top:5px; width:12px; height:2px; background:black;"></div>
+               </div>`,
+        iconSize:,
+        iconAnchor: [6,6]
     });
 
-    zoneLayers.length = 0;
-}
+    function clearZones() {
+        zoneLayers.forEach(layer => map.removeLayer(layer));
+        zoneLayers.length = 0;
+    }
 
-function drawZone(zone) {
-
-    const circle = L.circle(
-        [zone.lat, zone.lon],
-        {
+    function drawZone(zone) {
+        const circle = L.circle([zone.lat, zone.lon], {
             radius: zone.radius,
             color: 'blue',
             fillOpacity: 0.15
+        }).addTo(map);
+        zoneLayers.push(circle);
+
+        const dir = normalizeDirection(zone.message);
+        if (dir) {
+            const point = destinationPoint(zone.lat, zone.lon, directionAngles[dir], zone.radius + 3);
+            const marker = L.marker(point, { icon: reticleIcon }).addTo(map);
+            zoneLayers.push(marker);
         }
-    ).addTo(map);
-
-    zoneLayers.push(circle);
-
-    const dir = normalizeDirection(zone.message);
-
-    if (dir) {
-
-        const point = destinationPoint(
-            zone.lat,
-            zone.lon,
-            directionAngles[dir],
-            zone.radius + 3
-        );
-
-        const marker = L.marker(
-            point,
-            { icon: reticleIcon }
-        ).addTo(map);
-
-        zoneLayers.push(marker);
     }
-}
 
-function loadZones() {
-
-    clearZones();
-
-    const text =
-        document.getElementById('zoneInput').value;
-
-    try {
-
-        const zoneCode =
-            text
-                .replace(/^const\s+zones\s*=\s*/, '')
-                .replace(/;\s*$/, '');
-
-        const zones = eval(zoneCode);
-
-        console.table(zones);
-
-        zones.forEach(zone => {
-            drawZone(zone);
-        });
-
-    } catch(error) {
-
-        alert(
-            "Unable to parse zone data.\n\n" +
-            error.message
-        );
-
-        console.error(error);
+    function loadZones() {
+        clearZones();
+        // Trim outer spaces/tabs/newlines from the input text
+        let text = document.getElementById('zoneInput').value.trim();
+        
+        try {
+            // Strip off the "const zones =" variable assignment if it's there
+            text = text.replace(/^const\s+zones\s*=\s*/, '');
+            
+            // Slice off the trailing semicolon if present
+            if (text.endsWith(';')) {
+                text = text.slice(0, -1);
+            }
+            
+            // Force evaluate the array literal safely
+            const zones = eval('(' + text + ')');
+            
+            console.table(zones);
+            zones.forEach(zone => drawZone(zone));
+        } catch(error) {
+            alert("Unable to parse zone data.\n\n" + error.message);
+            console.error(error);
+        }
     }
-}
 </script>
-
 </body>
 </html>
