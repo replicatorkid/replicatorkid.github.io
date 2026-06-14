@@ -86,6 +86,180 @@
     L.marker([43.739051, -87.957069])
         .addTo(map)
         .bindPopup('Starting Location');
+
+const zoneLayers = [];
+
+const directionAngles = {
+    N: 0,
+    NE: 45,
+    E: 90,
+    SE: 135,
+    S: 180,
+    SW: 225,
+    W: 270,
+    NW: 315
+};
+
+function normalizeDirection(text) {
+
+    if (!text) return null;
+
+    const cleaned = text
+        .trim()
+        .toUpperCase()
+        .replace(/-/g, '')
+        .replace(/\s+/g, '');
+
+    const lookup = {
+        NORTH: "N",
+        SOUTH: "S",
+        EAST: "E",
+        WEST: "W",
+        NORTHEAST: "NE",
+        NORTHWEST: "NW",
+        SOUTHEAST: "SE",
+        SOUTHWEST: "SW",
+        N: "N",
+        S: "S",
+        E: "E",
+        W: "W",
+        NE: "NE",
+        NW: "NW",
+        SE: "SE",
+        SW: "SW"
+    };
+
+    return lookup[cleaned] || null;
+}
+
+function destinationPoint(lat, lon, bearingDeg, distanceMeters) {
+
+    const R = 6378137;
+
+    const lat1 = lat * Math.PI / 180;
+    const lon1 = lon * Math.PI / 180;
+    const brng = bearingDeg * Math.PI / 180;
+
+    const lat2 = Math.asin(
+        Math.sin(lat1) * Math.cos(distanceMeters / R) +
+        Math.cos(lat1) * Math.sin(distanceMeters / R) * Math.cos(brng)
+    );
+
+    const lon2 = lon1 + Math.atan2(
+        Math.sin(brng) * Math.sin(distanceMeters / R) * Math.cos(lat1),
+        Math.cos(distanceMeters / R) - Math.sin(lat1) * Math.sin(lat2)
+    );
+
+    return [
+        lat2 * 180 / Math.PI,
+        lon2 * 180 / Math.PI
+    ];
+}
+
+const reticleIcon = L.divIcon({
+    className: '',
+    html: `
+        <div style="
+            width:12px;
+            height:12px;
+            position:relative;
+        ">
+            <div style="
+                position:absolute;
+                left:5px;
+                top:0;
+                width:2px;
+                height:12px;
+                background:black;
+            "></div>
+            <div style="
+                position:absolute;
+                left:0;
+                top:5px;
+                width:12px;
+                height:2px;
+                background:black;
+            "></div>
+        </div>
+    `,
+    iconSize: [12,12],
+    iconAnchor: [6,6]
+});
+
+function clearZones() {
+
+    zoneLayers.forEach(layer => {
+        map.removeLayer(layer);
+    });
+
+    zoneLayers.length = 0;
+}
+
+function drawZone(zone) {
+
+    const circle = L.circle(
+        [zone.lat, zone.lon],
+        {
+            radius: zone.radius,
+            color: 'blue',
+            fillOpacity: 0.15
+        }
+    ).addTo(map);
+
+    zoneLayers.push(circle);
+
+    const dir = normalizeDirection(zone.message);
+
+    if (dir) {
+
+        const point = destinationPoint(
+            zone.lat,
+            zone.lon,
+            directionAngles[dir],
+            zone.radius + 3
+        );
+
+        const marker = L.marker(
+            point,
+            { icon: reticleIcon }
+        ).addTo(map);
+
+        zoneLayers.push(marker);
+    }
+}
+
+function loadZones() {
+
+    clearZones();
+
+    const text =
+        document.getElementById('zoneInput').value;
+
+    try {
+
+        const zoneCode =
+            text
+                .replace(/^const\s+zones\s*=\s*/, '')
+                .replace(/;\s*$/, '');
+
+        const zones = eval(zoneCode);
+
+        console.table(zones);
+
+        zones.forEach(zone => {
+            drawZone(zone);
+        });
+
+    } catch(error) {
+
+        alert(
+            "Unable to parse zone data.\n\n" +
+            error.message
+        );
+
+        console.error(error);
+    }
+}
 </script>
 
 </body>
