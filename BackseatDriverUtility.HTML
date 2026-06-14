@@ -52,17 +52,41 @@
     <div id="map"></div>
 
     <div id="sidebar">
-        <h2>Information</h2>
-
-        <p>
-            This is the text panel. Replace this content with
-            instructions, clues, puzzle information, or anything else.
-        </p>
-
-        <p>
-            The map fills the left four-fifths of the screen.
-            This panel fills the right fifth.
-        </p>
+         <h2>Zone Data</h2>
+        
+        <textarea id="zoneInput" style="
+            width:100%;
+            height:250px;
+            box-sizing:border-box;
+        ">
+        const zones = [
+            {
+                ID: 1,
+                lat: 43.749868,
+                lon: -87.984710,
+                radius: 10,
+                message: "Arrived"
+            },
+            {
+                ID: 2,
+                lat: 43.750868,
+                lon: -87.985088,
+                radius: 30,
+                message: "South-west"
+            },
+            {
+                ID: 3,
+                lat: 43.749728,
+                lon: -87.985051,
+                radius: 15,
+                message: "West"
+            }
+        ];
+        </textarea>
+        
+        <button onclick="loadZones()">
+            Draw Zones
+        </button>
     </div>
 </div>
 
