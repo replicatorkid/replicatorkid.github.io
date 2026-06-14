@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Leaflet Map Layout</title>
+
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin=""
+    />
+
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+        }
+
+        #container {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        #map {
+            width: 80%;
+            height: 100%;
+        }
+
+        #sidebar {
+            width: 20%;
+            height: 100%;
+            box-sizing: border-box;
+            padding: 1rem;
+            border-left: 1px solid #ccc;
+            overflow-y: auto;
+            font-family: Arial, sans-serif;
+        }
+
+        #sidebar h2 {
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body>
+
+<div id="container">
+    <div id="map"></div>
+
+    <div id="sidebar">
+        <h2>Information</h2>
+
+        <p>
+            This is the text panel. Replace this content with
+            instructions, clues, puzzle information, or anything else.
+        </p>
+
+        <p>
+            The map fills the left four-fifths of the screen.
+            This panel fills the right fifth.
+        </p>
+    </div>
+</div>
+
+<script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+></script>
+
+<script>
+    const map = L.map('map').setView([43.739051, -87.957069], 13);
+
+    L.tileLayer(
+        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+        {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap contributors'
+        }
+    ).addTo(map);
+
+    L.marker([43.739051, -87.957069])
+        .addTo(map)
+        .bindPopup('Starting Location');
+</script>
+
+</body>
+</html>
