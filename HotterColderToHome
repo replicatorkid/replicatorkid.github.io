@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Backseat Driver</title>
+    <title>Hotter Colder</title>
     <style>
         body {
             margin: 0;
@@ -21,6 +21,11 @@
             font-weight: bold;
             margin-bottom: 20px;
         }
+        #distance {
+            font-size: 24px;
+            color: #666;
+            margin-bottom: 20px;
+        }
         button {
             font-size: 28px;
             padding: 16px 24px;
@@ -30,72 +35,29 @@
 <body>
 
 <div id="message">Tap to Start</div>
+<div id="distance"></div>
 <button id="startBtn">Begin Navigation</button>
 
 <script>
 const message = document.getElementById("message");
+const distance = document.getElementById("distance");
 const button = document.getElementById("startBtn");
 
 // -----------------------------
-// 1. ZONE DATA (your map layer)
+// 1. TARGET COORDINATE
 // -----------------------------
-const zones = [
-      {
-          street_a: "Plymouth",
-          street_b: "Western",
-          lat: 43.750831,
-          lon: -87.985005,
-          radius: 45,
-          message: "South-east"
-      },
-      {
-          street_a: "Western",
-          street_b: "Mill",
-          lat: 43.747484,
-          lon: -87.981185,
-          radius: 45,
-          message: "South"
-      },
-      {
-          street_a: "67",
-          street_b: "PP",
-          lat: 43.732500,
-          lon: -87.981089,
-          radius: 45,
-          message: "East"
-      },
-      {
-          street_a: "PP",
-          street_b: "57",
-          lat: 43.732736,
-          lon: -87.941109,
-          radius: 65,
-          message: "South"
-      },
-      {
-          street_a: "57",
-          street_b: "Clearview",
-          lat: 43.660066,
-          lon: -87.941327,
-          radius: 55,
-          message: "East"
-      },
-      {
-          street_a: "Clearview",
-          street_b: "PCT",
-          lat: 43.660076,
-          lon: -87.940476,
-          radius: 15,
-          message: "South"
-      }
-];
+const TARGET = {
+    lat: 43.750831,
+    lon: -87.985005,
+    name: "Home"
+};
 
 // -----------------------------
 // 2. STATE TRACKING
 // -----------------------------
-let lastSpoken = {};
-const COOLDOWN_MS = 3000;
-let watchId = null; 
+let lastDistance = null;
+let watchId = null;
+let updateInterval = null;
 
 // -----------------------------
 // 3. DISTANCE FUNCTION
@@ -116,21 +78,44 @@ function distanceMeters(lat1, lon1, lat2, lon2) {
 // 4. TEXT TO SPEECH
 // -----------------------------
 function speak(text) {
-    // Clear any previous hung utterances in iOS Safari queues
-    window.speechSynthesis.cancel(); 
+    window.speechSynthesis.cancel();
     
     const msg = new SpeechSynthesisUtterance(text);
     msg.rate = 1;
     msg.pitch = 1;
     
-    // Small timeout ensures the cancel event completes before speaking
     setTimeout(() => {
         window.speechSynthesis.speak(msg);
     }, 50);
 }
 
 // -----------------------------
-// 5. MAIN GPS LOOP
+// 5. FEEDBACK FUNCTION
+// -----------------------------
+function provideFeedback(currentDistance) {
+    let feedback = "";
+    
+    if (lastDistance === null) {
+        // First reading
+        feedback = `Starting distance: ${Math.round(currentDistance)} meters`;
+    } else if (currentDistance < lastDistance) {
+        const diff = Math.round(lastDistance - currentDistance);
+        feedback = `Hotter! ${diff} meters closer. Now ${Math.round(currentDistance)} meters away.`;
+    } else if (currentDistance > lastDistance) {
+        const diff = Math.round(currentDistance - lastDistance);
+        feedback = `Colder. ${diff} meters farther. Now ${Math.round(currentDistance)} meters away.`;
+    } else {
+        feedback = `Same distance: ${Math.round(currentDistance)} meters away.`;
+    }
+    
+    message.textContent = feedback;
+    distance.textContent = `Distance: ${Math.round(currentDistance)}m`;
+    speak(feedback);
+    lastDistance = currentDistance;
+}
+
+// -----------------------------
+// 6. MAIN GPS LOOP
 // -----------------------------
 function startTracking() {
     if (watchId !== null) return;
@@ -142,40 +127,34 @@ function startTracking() {
         const lat = pos.coords.latitude;
         const lon = pos.coords.longitude;
         
-        // Output coordinates to the screen to confirm live tracking is processing
-        message.textContent = `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
+        const d = distanceMeters(lat, lon, TARGET.lat, TARGET.lon);
         
-        zones.forEach((z, i) => {
-            const d = distanceMeters(lat, lon, z.lat, z.lon);
-            if (d <= z.radius) {
-                const now = Date.now();
-                if (!lastSpoken[i] || now - lastSpoken[i] > COOLDOWN_MS) {
-                    message.textContent = z.message;
-                    speak(z.message);
-                    lastSpoken[i] = now;
-                }
-            }
-        });
+        // Schedule feedback every 5 seconds
+        if (updateInterval) clearInterval(updateInterval);
+        
+        updateInterval = setInterval(() => {
+            provideFeedback(d);
+        }, 5000);
+        
+        // Provide initial feedback immediately
+        provideFeedback(d);
+        
     }, (err) => {
-        // Output specific error codes for easier mobile debugging
         message.textContent = `GPS Error: ${err.message} (Code ${err.code})`;
     }, {
         enableHighAccuracy: true,
-        maximumAge: 0, 
+        maximumAge: 0,
         timeout: 10000
     });
 }
 
 // -----------------------------
-// 6. USER START (Optimized for iOS)
+// 7. USER START
 // -----------------------------
 button.addEventListener("click", () => {
     message.textContent = "Initializing...";
     
-    // 1. Force Speech API to unlock immediately inside the synchronous click path
     speak("Navigation initiated");
-    
-    // 2. Fire tracking immediately instead of nesting it to bypass Chrome iOS context hanging
     startTracking();
 });
 </script>
