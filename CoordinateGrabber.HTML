@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Leaflet Map Layout</title>
+
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin=""
+    />
+
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+        }
+
+        #container {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        #map {
+            width: 80%;
+            height: 100%;
+        }
+
+        #sidebar {
+            width: 20%;
+            height: 100%;
+            box-sizing: border-box;
+            padding: 1rem;
+            border-left: 1px solid #ccc;
+            overflow-y: auto;
+            font-family: Arial, sans-serif;
+        }
+
+        #sidebar h2 {
+            margin-top: 0;
+        }
+        #output {
+            width: 100%;
+            height: 100%;
+            box-sizing: border-box;
+            resize: none;
+            font-family: monospace;
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<dialog id="locationDialog">
+    <form method="dialog">
+        <h3>Location Data</h3>
+
+        <label>
+            Radius (meters):
+            <input id="radiusInput" type="number" value="15">
+        </label>
+
+        <br><br>
+
+        <label>
+            Street A:
+            <input id="streetAInput" type="text">
+        </label>
+
+        <br><br>
+
+        <label>
+            Street B:
+            <input id="streetBInput" type="text">
+        </label>
+
+        <br><br>
+
+        <label>
+            Message:
+            <input id="messageInput" type="text">
+        </label>
+
+        <br><br>
+
+        <button type="button" id="applyButton">Apply</button>
+        <button type="button" id="cancelButton">Cancel</button>
+    </form>
+</dialog>
+
+<body>
+
+<div id="container">
+    <div id="map"></div>
+
+    <div id="sidebar">
+        <textarea id="output"></textarea>
+    </div>
+</div>
+
+<script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+></script>
+
+<script>
+const map = L.map('map').setView([43.739051, -87.957069], 13);
+
+L.tileLayer(
+    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors'
+    }
+).addTo(map);
+
+let mouseLat = null;
+let mouseLon = null;
+
+const dialog = document.getElementById("locationDialog");
+const output = document.getElementById("output");
+
+map.on("mousemove", function(e) {
+    mouseLat = e.latlng.lat;
+    mouseLon = e.latlng.lng;
+});
+
+document.getElementById("cancelButton").addEventListener("click", () => {
+    dialog.close();
+});
+
+document.getElementById("applyButton").addEventListener("click", () => {
+
+    const lat = mouseLat;
+    const lon = mouseLon;
+
+    const radius =
+        document.getElementById("radiusInput").value;
+
+    const streetA =
+        document.getElementById("streetAInput").value;
+
+    const streetB =
+        document.getElementById("streetBInput").value;
+
+    const message =
+        document.getElementById("messageInput").value;
+
+    const block =
+`{
+    street_a: "${streetA}",
+    street_b: "${streetB}",
+    lat: ${lat.toFixed(6)},
+    lon: ${lon.toFixed(6)},
+    radius: ${radius},
+    message: "${message}"
+},
+
+`;
+
+    output.value += block;
+
+    document.getElementById("radiusInput").value = 15;
+    document.getElementById("streetAInput").value = "";
+    document.getElementById("streetBInput").value = "";
+    document.getElementById("messageInput").value = "";
+
+    dialog.close();
+});
+
+document.addEventListener("keyup", function(event) {
+
+    if (event.key.toLowerCase() !== "q") {
+        return;
+    }
+
+    const mapElement = document.getElementById("map");
+
+    if (!mapElement.matches(":hover")) {
+        return;
+    }
+
+    if (mouseLat === null || mouseLon === null) {
+        return;
+    }
+
+    dialog.showModal();
+});
+</script>
+
+</body>
+</html>
