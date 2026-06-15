@@ -111,6 +111,33 @@
 <script>
 const map = L.map('map').setView([43.739051, -87.957069], 13);
 
+const circleLayer = L.layerGroup().addTo(map);
+
+function redrawCircles() {
+
+    circleLayer.clearLayers();
+
+    const text = output.value;
+
+    const regex =
+        /lat:\s*(-?\d+(?:\.\d+)?)\s*,[\s\S]*?lon:\s*(-?\d+(?:\.\d+)?)\s*,[\s\S]*?radius:\s*(\d+(?:\.\d+)?)/g;
+
+    let match;
+
+    while ((match = regex.exec(text)) !== null) {
+
+        const lat = parseFloat(match[1]);
+        const lon = parseFloat(match[2]);
+        const radius = parseFloat(match[3]);
+
+        L.circle([lat, lon], {
+            radius: radius,
+            weight: 2,
+            fillOpacity: 0.25
+        }).addTo(circleLayer);
+    }
+}
+
 L.tileLayer(
     'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
     {
@@ -164,6 +191,7 @@ document.getElementById("applyButton").addEventListener("click", () => {
 `;
 
     output.value += block;
+    redrawCircles();
 
     document.getElementById("radiusInput").value = 15;
     document.getElementById("streetAInput").value = "";
@@ -172,6 +200,8 @@ document.getElementById("applyButton").addEventListener("click", () => {
 
     dialog.close();
 });
+
+output.addEventListener("input", redrawCircles);
 
 document.addEventListener("keyup", function(event) {
 
