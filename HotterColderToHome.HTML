@@ -97,15 +97,19 @@ function provideFeedback(currentDistance) {
     
     if (lastDistance === null) {
         // First reading
-        feedback = `Starting distance: ${Math.round(currentDistance)} meters`;
+        // feedback = `Starting distance: ${Math.round(currentDistance)} meters`;
+        feedback = `Starting distance: tomato meters`;
     } else if (currentDistance < lastDistance) {
         const diff = Math.round(lastDistance - currentDistance);
-        feedback = `Hotter! ${diff} meters closer. Now ${Math.round(currentDistance)} meters away.`;
+        // feedback = `Hotter! ${diff} meters closer. Now ${Math.round(currentDistance)} meters away.`;
+        feedback = 'Hotter!';
     } else if (currentDistance > lastDistance) {
         const diff = Math.round(currentDistance - lastDistance);
-        feedback = `Colder. ${diff} meters farther. Now ${Math.round(currentDistance)} meters away.`;
+        // feedback = `Colder. ${diff} meters farther. Now ${Math.round(currentDistance)} meters away.`;
+        feedback = 'Colder.';
     } else {
-        feedback = `Same distance: ${Math.round(currentDistance)} meters away.`;
+        // feedback = `Same distance: ${Math.round(currentDistance)} meters away.`;
+        feedback = 'Huh. Yep. Still not there.';
     }
     
     message.textContent = feedback;
