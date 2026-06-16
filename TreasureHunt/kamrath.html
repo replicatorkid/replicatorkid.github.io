@@ -40,7 +40,144 @@ const button = document.getElementById("startBtn");
 // 1. ZONE DATA (your map layer)
 // -----------------------------
 const zones = [
-  //Must add intersection data
+    //Minimal paths. No redundancies.
+    {
+        street_a: "ZZ",
+        street_b: "Z",
+        lat: 43.746584,
+        lon: -88.025883,
+        radius: 110,
+        message: "East"
+    },
+    {
+        street_a: "ZZ",
+        street_b: "67",
+        lat: 43.725063,
+        lon: -88.026108,
+        radius: 110,
+        message: "East"
+    },
+    {
+        street_a: "Parking Lot",
+        street_b: "ZZ",
+        lat: 43.733542,
+        lon: -88.026059,
+        radius: 200,
+        message: "Drive"
+    },
+    {
+        street_a: "Z",
+        street_b: "Pioneer",
+        lat: 43.746735,
+        lon: -88.021001,
+        radius: 110,
+        message: "North"
+    },
+    {
+        street_a: "Pioneer",
+        street_b: "23",
+        lat: 43.763950,
+        lon: -88.021194,
+        radius: 125,
+        message: "East"
+    },
+    {
+        street_a: "23",
+        street_b: "North Wilwaukee",
+        lat: 43.761769,
+        lon: -87.985631,
+        radius: 200,
+        message: "South"
+    },
+    {
+        street_a: "67",
+        street_b: "Surkhe",
+        lat: 43.756839,
+        lon: -87.981322,
+        radius: 50,
+        message: "West"
+    },
+    {
+        street_a: "Surkhe",
+        street_b: "Krumrey",
+        lat: 43.756824,
+        lon: -87.986258,
+        radius: 50,
+        message: "West"
+    },
+    {
+        street_a: "Surkhe",
+        street_b: "Sunset",
+        lat: 43.756799,
+        lon: -87.988020,
+        radius: 50,
+        message: "South"
+    },
+    {
+        street_a: "Sunset",
+        street_b: "Western",
+        lat: 43.752502,
+        lon: -87.988983,
+        radius: 50,
+        message: "South-east"
+    },
+    {
+        street_a: "Wester",
+        street_b: "Plymouth",
+        lat: 43.750826,
+        lon: -87.984983,
+        radius: 50,
+        message: "South"
+    },
+    {
+        street_a: "Plymouth",
+        street_b: "Home",
+        lat: 43.749728,
+        lon: -87.984834,
+        radius: 30,
+        message: "Arrived! Dial one eight-hundred treasure to claim your prize!"
+    },
+    {
+        street_a: "67",
+        street_b: "PP",
+        lat: 43.732475,
+        lon: -87.981108,
+        radius: 90,
+        message: "North"
+    },
+    {
+        street_a: "67",
+        street_b: "Z",
+        lat: 43.747484,
+        lon: -87.981154,
+        radius: 40,
+        message: "West"
+    },
+    {
+        street_a: "Z",
+        street_b: "North Pleasant",
+        lat: 43.747476,
+        lon: -87.983718,
+        radius: 20,
+        message: "South"
+    },
+    {
+        street_a: "Z",
+        street_b: "Plymouth",
+        lat: 43.746980,
+        lon: -87.985006,
+        radius: 40,
+        message: "North"
+    },
+    {
+        street_a: "Plymouth",
+        street_b: "Main",
+        lat: 43.748677,
+        lon: -87.985017,
+        radius: 30,
+        message: "North"
+    }
+    //Redundancies
 ];
 
 // -----------------------------
