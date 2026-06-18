@@ -47,8 +47,8 @@ const button = document.getElementById("startBtn");
 // 1. TARGET COORDINATE
 // -----------------------------
 const TARGET = {
-    lat: 43.750831,
-    lon: -87.985005,
+    lat: 43.799262216866865,
+    lon: -87.91079479581255,
     name: "Home"
 };
 
@@ -98,7 +98,7 @@ function provideFeedback(currentDistance) {
     if (lastDistance === null) {
         // First reading
         // feedback = `Starting distance: ${Math.round(currentDistance)} meters`;
-        feedback = `Starting distance: tomato meters`;
+        feedback = `Better get movin' there, guy.`;
     } else if (currentDistance < lastDistance) {
         const diff = Math.round(lastDistance - currentDistance);
         // feedback = `Hotter! ${diff} meters closer. Now ${Math.round(currentDistance)} meters away.`;
@@ -109,7 +109,7 @@ function provideFeedback(currentDistance) {
         feedback = 'Colder.';
     } else {
         // feedback = `Same distance: ${Math.round(currentDistance)} meters away.`;
-        feedback = 'Huh. Yep. Still not there.';
+        feedback = 'Keep 'er movin'.';
     }
     
     message.textContent = feedback;
