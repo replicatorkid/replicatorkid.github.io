@@ -113,6 +113,60 @@ const map = L.map('map').setView([43.739051, -87.957069], 13);
 
 const circleLayer = L.layerGroup().addTo(map);
 
+function parseDirection(msg) {
+    if (!msg) return null;
+    const normalized = msg.toLowerCase();
+    const m = normalized.match(/(northwest|north-west|north west|northeast|north-east|north east|southwest|south-west|south west|southeast|south-east|south east|north|south|east|west|\bn\b|\bs\b|\be\b|\bw\b|\bne\b|\bnw\b|\bse\b|\bsw\b)/);
+    if (!m) return null;
+    const token = m[1].replace(/[-\s]/g, '');
+    switch (token) {
+        case 'n':
+        case 'north': return 0;
+        case 'ne':
+        case 'northeast': return 45;
+        case 'e':
+        case 'east': return 90;
+        case 'se':
+        case 'southeast': return 135;
+        case 's':
+        case 'south': return 180;
+        case 'sw':
+        case 'southwest': return 225;
+        case 'w':
+        case 'west': return 270;
+        case 'nw':
+        case 'northwest': return 315;
+    }
+    return null;
+}
+
+// destination point given start lat/lon (degrees), distance in meters, bearing in degrees
+function destinationPoint(lat, lon, distance, bearing) {
+    const R = 6378137; // Earth's radius in meters (WGS-84)
+    const δ = distance / R; // angular distance in radians
+    const θ = (bearing * Math.PI) / 180; // bearing in radians
+
+    const φ1 = (lat * Math.PI) / 180;
+    const λ1 = (lon * Math.PI) / 180;
+
+    const sinφ1 = Math.sin(φ1);
+    const cosφ1 = Math.cos(φ1);
+    const sinδ = Math.sin(δ);
+    const cosδ = Math.cos(δ);
+
+    const sinφ2 = sinφ1 * cosδ + cosφ1 * sinδ * Math.cos(θ);
+    const φ2 = Math.asin(Math.max(-1, Math.min(1, sinφ2)));
+
+    const y = Math.sin(θ) * sinδ * cosφ1;
+    const x = cosδ - sinφ1 * Math.sin(φ2);
+    const λ2 = λ1 + Math.atan2(y, x);
+
+    const lat2 = (φ2 * 180) / Math.PI;
+    const lon2 = ((λ2 * 180) / Math.PI + 540) % 360 - 180; // normalize to -180..+180
+
+    return [lat2, lon2];
+}
+
 function redrawCircles() {
 
     circleLayer.clearLayers();
@@ -120,7 +174,7 @@ function redrawCircles() {
     const text = output.value;
 
     const regex =
-        /lat:\s*(-?\d+(?:\.\d+)?)\s*,[\s\S]*?lon:\s*(-?\d+(?:\.\d+)?)\s*,[\s\S]*?radius:\s*(\d+(?:\.\d+)?)/g;
+        /lat:\s*(-?\d+(?:\.\d+)?)\s*,[\s\S]*?lon:\s*(-?\d+(?:\.\d+)?)\s*,[\s\S]*?radius:\s*(\d+(?:\.\d+)?)[\s\S]*?message:\s*"([^"]*)"/g;
 
     let match;
 
@@ -129,12 +183,22 @@ function redrawCircles() {
         const lat = parseFloat(match[1]);
         const lon = parseFloat(match[2]);
         const radius = parseFloat(match[3]);
+        const message = match[4] || "";
 
         L.circle([lat, lon], {
             radius: radius,
             weight: 2,
             fillOpacity: 0.25
         }).addTo(circleLayer);
+
+        // try to parse a compass direction from the message
+        const bearing = parseDirection(message);
+        if (bearing !== null) {
+            // draw a line from the center out to 1.5x the radius
+            const distance = radius * 1.5;
+            const dest = destinationPoint(lat, lon, distance, bearing);
+            L.polyline([[lat, lon], dest], {color: '#000', weight: 2}).addTo(circleLayer);
+        }
     }
 }
 
@@ -178,8 +242,7 @@ document.getElementById("applyButton").addEventListener("click", () => {
     const message =
         document.getElementById("messageInput").value;
 
-    const block =
-`{
+    const block =`{
     street_a: "${streetA}",
     street_b: "${streetB}",
     lat: ${lat.toFixed(6)},
