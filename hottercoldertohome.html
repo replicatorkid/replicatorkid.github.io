@@ -20,6 +20,7 @@
             font-size: 48px;
             font-weight: bold;
             margin-bottom: 20px;
+            min-height: 60px;
         }
         #distance {
             font-size: 24px;
@@ -30,6 +31,9 @@
             font-size: 28px;
             padding: 16px 24px;
         }
+        #feedbackButton {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -37,11 +41,13 @@
 <div id="message">Tap to Start</div>
 <div id="distance"></div>
 <button id="startBtn">Begin Navigation</button>
+<button id="feedbackButton">Check Distance</button>
 
 <script>
 const message = document.getElementById("message");
 const distance = document.getElementById("distance");
-const button = document.getElementById("startBtn");
+const startBtn = document.getElementById("startBtn");
+const feedbackButton = document.getElementById("feedbackButton");
 
 // -----------------------------
 // 1. TARGET COORDINATE
@@ -57,7 +63,8 @@ const TARGET = {
 // -----------------------------
 let lastDistance = null;
 let watchId = null;
-let updateInterval = null;
+let currentDistance = null;
+let isTracking = false;
 
 // -----------------------------
 // 3. DISTANCE FUNCTION
@@ -92,30 +99,34 @@ function speak(text) {
 // -----------------------------
 // 5. FEEDBACK FUNCTION
 // -----------------------------
-function provideFeedback(currentDistance) {
+function provideFeedback() {
+    if (currentDistance === null) return;
+    
     let feedback = "";
     
     if (lastDistance === null) {
-        // First reading
-        // feedback = `Starting distance: ${Math.round(currentDistance)} meters`;
         feedback = `Better get movin there, guy.`;
     } else if (currentDistance < lastDistance) {
         const diff = Math.round(lastDistance - currentDistance);
-        // feedback = `Hotter! ${diff} meters closer. Now ${Math.round(currentDistance)} meters away.`;
         feedback = 'Hotter!';
     } else if (currentDistance > lastDistance) {
         const diff = Math.round(currentDistance - lastDistance);
-        // feedback = `Colder. ${diff} meters farther. Now ${Math.round(currentDistance)} meters away.`;
         feedback = 'Colder.';
     } else {
-        // feedback = `Same distance: ${Math.round(currentDistance)} meters away.`;
         feedback = 'Keep er movin.';
     }
     
     message.textContent = feedback;
-    //distance.textContent = `Distance: ${Math.round(currentDistance)}m`;
     speak(feedback);
     lastDistance = currentDistance;
+    
+    // Hide button for 1 second after feedback
+    feedbackButton.style.display = "none";
+    setTimeout(() => {
+        if (isTracking) {
+            feedbackButton.style.display = "block";
+        }
+    }, 1000);
 }
 
 // -----------------------------
@@ -125,23 +136,20 @@ function startTracking() {
     if (watchId !== null) return;
     
     message.textContent = "Tracking GPS...";
-    button.style.display = "none";
+    startBtn.style.display = "none";
+    isTracking = true;
     
     watchId = navigator.geolocation.watchPosition((pos) => {
         const lat = pos.coords.latitude;
         const lon = pos.coords.longitude;
         
-        const d = distanceMeters(lat, lon, TARGET.lat, TARGET.lon);
+        currentDistance = distanceMeters(lat, lon, TARGET.lat, TARGET.lon);
         
-        // Schedule feedback every 5 seconds
-        if (updateInterval) clearInterval(updateInterval);
-        
-        updateInterval = setInterval(() => {
-            provideFeedback(d);
-        }, 5000);
-        
-        // Provide initial feedback immediately
-        provideFeedback(d);
+        // Show feedback button once we have a distance
+        if (feedbackButton.style.display === "none") {
+            feedbackButton.style.display = "block";
+            message.textContent = "Press to check distance";
+        }
         
     }, (err) => {
         message.textContent = `GPS Error: ${err.message} (Code ${err.code})`;
@@ -155,11 +163,14 @@ function startTracking() {
 // -----------------------------
 // 7. USER START
 // -----------------------------
-button.addEventListener("click", () => {
+startBtn.addEventListener("click", () => {
     message.textContent = "Initializing...";
-    
     speak("Navigation initiated");
     startTracking();
+});
+
+feedbackButton.addEventListener("click", () => {
+    provideFeedback();
 });
 </script>
 
