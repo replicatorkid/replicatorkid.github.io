@@ -1,0 +1,179 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hotter Colder</title>
+    <style>
+        body {
+            margin: 0;
+            background: white;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            text-align: center;
+        }
+        #message {
+            font-size: 48px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            min-height: 60px;
+        }
+        #distance {
+            font-size: 24px;
+            color: #666;
+            margin-bottom: 20px;
+        }
+        button {
+            font-size: 28px;
+            padding: 16px 24px;
+        }
+        #feedbackButton {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<div id="message">Tap to Start</div>
+<div id="distance"></div>
+<button id="startBtn">Begin Navigation</button>
+<button id="feedbackButton">Check Distance</button>
+
+<script>
+const message = document.getElementById("message");
+const distance = document.getElementById("distance");
+const startBtn = document.getElementById("startBtn");
+const feedbackButton = document.getElementById("feedbackButton");
+
+// -----------------------------
+// 1. TARGET COORDINATE
+// -----------------------------
+const TARGET = {
+    lat: 43.68483717238076,
+    lon: -88.02250001135275,
+    name: "Home"
+};
+
+// -----------------------------
+// 2. STATE TRACKING
+// -----------------------------
+let lastDistance = null;
+let watchId = null;
+let currentDistance = null;
+let isTracking = false;
+
+// -----------------------------
+// 3. DISTANCE FUNCTION
+// -----------------------------
+function distanceMeters(lat1, lon1, lat2, lon2) {
+    const R = 6371e3;
+    const toRad = x => x * Math.PI / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+}
+
+// -----------------------------
+// 4. TEXT TO SPEECH
+// -----------------------------
+function speak(text) {
+    window.speechSynthesis.cancel();
+    
+    const msg = new SpeechSynthesisUtterance(text);
+    msg.rate = 1;
+    msg.pitch = 1;
+    
+    setTimeout(() => {
+        window.speechSynthesis.speak(msg);
+    }, 50);
+}
+
+// -----------------------------
+// 5. FEEDBACK FUNCTION
+// -----------------------------
+function provideFeedback() {
+    if (currentDistance === null) return;
+    
+    let feedback = "";
+    
+    if (lastDistance === null) {
+        feedback = `Better get movin there, guy.`;
+    } else if (currentDistance < lastDistance) {
+        const diff = Math.round(lastDistance - currentDistance);
+        feedback = 'Hotter!';
+    } else if (currentDistance > lastDistance) {
+        const diff = Math.round(currentDistance - lastDistance);
+        feedback = 'Colder.';
+    } else {
+        feedback = 'Keep er movin.';
+    }
+    
+    message.textContent = feedback;
+    speak(feedback);
+    lastDistance = currentDistance;
+    
+    // Hide button for 1 second after feedback
+    feedbackButton.style.display = "none";
+    setTimeout(() => {
+        if (isTracking) {
+            feedbackButton.style.display = "block";
+        }
+    }, 1000);
+}
+
+// -----------------------------
+// 6. MAIN GPS LOOP
+// -----------------------------
+function startTracking() {
+    if (watchId !== null) return;
+    
+    message.textContent = "Tracking GPS...";
+    startBtn.style.display = "none";
+    isTracking = true;
+    
+    watchId = navigator.geolocation.watchPosition((pos) => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        
+        currentDistance = distanceMeters(lat, lon, TARGET.lat, TARGET.lon);
+        
+        // Show feedback button once we have a distance
+        if (getComputedStyle(feedbackButton).display === "none") {
+            feedbackButton.style.display = "block";
+            message.textContent = "Press to check distance";
+        }
+        
+    }, (err) => {
+        message.textContent = `GPS Error: ${err.message} (Code ${err.code})`;
+    }, {
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: 10000
+    });
+}
+
+// -----------------------------
+// 7. USER START
+// -----------------------------
+startBtn.addEventListener("click", () => {
+    message.textContent = "Initializing...";
+    speak("Navigation initiated");
+    startTracking();
+});
+
+feedbackButton.addEventListener("click", () => {
+    provideFeedback();
+});
+</script>
+
+</body>
+</html>
