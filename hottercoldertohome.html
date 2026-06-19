@@ -146,7 +146,7 @@ function startTracking() {
         currentDistance = distanceMeters(lat, lon, TARGET.lat, TARGET.lon);
         
         // Show feedback button once we have a distance
-        if (feedbackButton.style.display === "none") {
+        if (getComputedStyle(feedbackButton).display === "none") {
             feedbackButton.style.display = "block";
             message.textContent = "Press to check distance";
         }
