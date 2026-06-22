@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Character Grid</title>
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    padding: 20px;
+}
+
+input.cell,
+input.allowed {
+    width: 32px;
+    height: 32px;
+    text-align: center;
+    font-size: 20px;
+    text-transform: uppercase;
+}
+
+.allowed-row {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 25px;
+}
+
+.grid-row {
+    display: flex;
+    align-items: center;
+    margin: 4px 0;
+}
+
+.grid {
+    display: flex;
+    gap: 4px;
+}
+
+.shift-btn,
+.random-btn {
+    width: 40px;
+    height: 36px;
+    margin: 0 8px;
+    font-size: 18px;
+}
+
+.bottom-buttons {
+    display: flex;
+    margin-left: 48px;
+    gap: 4px;
+    margin-top: 8px;
+}
+
+.column-duplicate {
+    background-color: #ff9999 !important;
+}
+</style>
+</head>
+
+<body>
+
+<h3>Allowed Characters</h3>
+<div id="allowedRow" class="allowed-row"></div>
+
+<h3>Grid</h3>
+<div id="gridContainer"></div>
+
+<div id="bottomButtons" class="bottom-buttons"></div>
+
+<script>
+
+const ROWS = 6;
+const COLS = 12;
+
+const allowedRow = document.getElementById("allowedRow");
+const gridContainer = document.getElementById("gridContainer");
+const bottomButtons = document.getElementById("bottomButtons");
+
+//
+// Create top row
+//
+for (let i = 0; i < 20; i++) {
+    const box = document.createElement("input");
+    box.className = "allowed";
+    box.maxLength = 1;
+
+    box.addEventListener("input", () => {
+        box.value = box.value.toUpperCase();
+        checkDuplicates();
+    });
+
+    allowedRow.appendChild(box);
+}
+
+//
+// Create grid
+//
+for (let r = 0; r < ROWS; r++) {
+
+    const rowDiv = document.createElement("div");
+    rowDiv.className = "grid-row";
+
+    const leftBtn = document.createElement("button");
+    leftBtn.className = "shift-btn";
+    leftBtn.textContent = "←";
+    leftBtn.onclick = () => shiftRow(r, -1);
+
+    const rightBtn = document.createElement("button");
+    rightBtn.className = "shift-btn";
+    rightBtn.textContent = "→";
+    rightBtn.onclick = () => shiftRow(r, 1);
+
+    const gridDiv = document.createElement("div");
+    gridDiv.className = "grid";
+
+    for (let c = 0; c < COLS; c++) {
+
+        const box = document.createElement("input");
+        box.className = "cell";
+        box.maxLength = 1;
+        box.dataset.row = r;
+        box.dataset.col = c;
+
+        box.addEventListener("input", validateGridInput);
+
+        gridDiv.appendChild(box);
+    }
+
+    rowDiv.appendChild(leftBtn);
+    rowDiv.appendChild(gridDiv);
+    rowDiv.appendChild(rightBtn);
+
+    gridContainer.appendChild(rowDiv);
+}
+
+//
+// Bottom buttons
+//
+for (let c = 0; c < COLS; c++) {
+
+    const btn = document.createElement("button");
+    btn.className = "random-btn";
+    btn.textContent = "↓";
+    btn.onclick = () => fillColumn(c);
+
+    bottomButtons.appendChild(btn);
+}
+
+//
+// Helpers
+//
+function getAllowedCharacters() {
+
+    const chars = [];
+
+    document.querySelectorAll(".allowed").forEach(box => {
+
+        const v = box.value.trim().toUpperCase();
+
+        if (v && !chars.includes(v)) {
+            chars.push(v);
+        }
+    });
+
+    return chars;
+}
+
+function validateGridInput(event) {
+
+    const allowed = getAllowedCharacters();
+
+    let value = event.target.value.toUpperCase();
+
+    if (value.length > 1) {
+        value = value[0];
+    }
+
+    if (value && !allowed.includes(value)) {
+        event.target.value = "";
+    } else {
+        event.target.value = value;
+    }
+
+    checkDuplicates();
+}
+
+function shiftRow(row, direction) {
+
+    const cells = [];
+
+    for (let c = 0; c < COLS; c++) {
+        cells.push(
+            document.querySelector(
+                `.cell[data-row="${row}"][data-col="${c}"]`
+            ).value
+        );
+    }
+
+    if (direction < 0) {
+        cells.push(cells.shift());
+    } else {
+        cells.unshift(cells.pop());
+    }
+
+    for (let c = 0; c < COLS; c++) {
+
+        document.querySelector(
+            `.cell[data-row="${row}"][data-col="${c}"]`
+        ).value = cells[c];
+    }
+
+    checkDuplicates();
+}
+
+function fillColumn(col) {
+
+    const allowed = getAllowedCharacters();
+
+    if (allowed.length === 0) {
+        return;
+    }
+
+    const existing = [];
+
+    for (let r = 0; r < ROWS; r++) {
+
+        const cell = document.querySelector(
+            `.cell[data-row="${r}"][data-col="${col}"]`
+        );
+
+        if (cell.value) {
+            existing.push(cell.value);
+        }
+    }
+
+    const available = allowed.filter(
+        ch => !existing.includes(ch)
+    );
+
+    if (available.length === 0) {
+        return;
+    }
+
+    const empties = [];
+
+    for (let r = 0; r < ROWS; r++) {
+
+        const cell = document.querySelector(
+            `.cell[data-row="${r}"][data-col="${col}"]`
+        );
+
+        if (!cell.value) {
+            empties.push(cell);
+        }
+    }
+
+    shuffle(available);
+
+    empties.forEach(cell => {
+
+        if (available.length > 0) {
+            cell.value = available.pop();
+        }
+    });
+
+    checkDuplicates();
+}
+
+function shuffle(array) {
+
+    for (let i = array.length - 1; i > 0; i--) {
+
+        const j = Math.floor(Math.random() * (i + 1));
+
+        [array[i], array[j]] =
+            [array[j], array[i]];
+    }
+
+    return array;
+}
+
+function checkDuplicates() {
+
+    document.querySelectorAll(".cell").forEach(
+        cell => cell.classList.remove("column-duplicate")
+    );
+
+    for (let c = 0; c < COLS; c++) {
+
+        const seen = {};
+        let duplicateFound = false;
+
+        for (let r = 0; r < ROWS; r++) {
+
+            const cell = document.querySelector(
+                `.cell[data-row="${r}"][data-col="${c}"]`
+            );
+
+            const value = cell.value;
+
+            if (!value) continue;
+
+            if (seen[value]) {
+                duplicateFound = true;
+            }
+
+            seen[value] = true;
+        }
+
+        if (duplicateFound) {
+
+            for (let r = 0; r < ROWS; r++) {
+
+                const cell = document.querySelector(
+                    `.cell[data-row="${r}"][data-col="${c}"]`
+                );
+
+                cell.classList.add("column-duplicate");
+            }
+        }
+    }
+}
+
+setInterval(checkDuplicates, 500);
+
+</script>
+
+</body>
+</html>
