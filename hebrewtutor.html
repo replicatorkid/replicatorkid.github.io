@@ -3,221 +3,95 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Call Screen Test</title>
+<title>Hebrew Speech Test</title>
 
 <style>
-html, body {
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    background: #000;
-    color: white;
+body {
     font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-}
-
-.screen {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    align-items: center;
-    padding: 60px 20px;
-    box-sizing: border-box;
-}
-
-.caller {
+    background: #111;
+    color: white;
     text-align: center;
+    padding-top: 80px;
 }
 
-.name {
-    font-size: 42px;
-    font-weight: 300;
-    margin-bottom: 10px;
+button {
+    font-size: 24px;
+    padding: 20px 40px;
+    border-radius: 12px;
+    border: none;
 }
 
-.status {
-    font-size: 22px;
-    opacity: 0.8;
-}
-
-.avatar {
-    width: 180px;
-    height: 180px;
-    border-radius: 90px;
-    background: #333;
-    margin-top: 40px;
-}
-
-.bottom {
-    margin-bottom: 50px;
-    text-align: center;
-}
-
-.calltime {
-    font-size: 18px;
-    opacity: 0.8;
+#status {
+    margin-top: 30px;
+    font-size: 20px;
+    line-height: 1.5;
 }
 </style>
 </head>
 <body>
 
-<div class="screen">
-    <div class="caller">
-        <div class="name">Hebrew Test</div>
-        <div class="status" id="status">Connecting...</div>
-        <div class="avatar"></div>
-    </div>
+<h1>Hebrew Speech Test</h1>
 
-    <div class="bottom">
-        <div class="calltime" id="timer">00:00</div>
-    </div>
-</div>
+<button id="startBtn">Start</button>
+
+<div id="status">Waiting...</div>
 
 <script>
 
-const statusEl = document.getElementById("status");
-const timerEl = document.getElementById("timer");
+const statusDiv = document.getElementById("status");
+const startBtn = document.getElementById("startBtn");
 
-let seconds = 0;
+async function requestMic() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+            audio: true
+        });
 
-setInterval(() => {
-    seconds++;
-    const m = String(Math.floor(seconds / 60)).padStart(2,"0");
-    const s = String(seconds % 60).padStart(2,"0");
-    timerEl.textContent = `${m}:${s}`;
-}, 1000);
+        statusDiv.innerHTML += "<br>Microphone granted.";
 
-function speak(text, lang = "en-US") {
+        stream.getTracks().forEach(track => track.stop());
+
+        return true;
+    }
+    catch (err) {
+        statusDiv.innerHTML += "<br>Microphone denied: " + err.message;
+        return false;
+    }
+}
+
+function speakHebrew() {
+
     return new Promise(resolve => {
 
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = lang;
+        const utterance = new SpeechSynthesisUtterance(
+            "שלום. אני מדבר עברית."
+        );
 
-        utterance.onend = () => resolve();
+        utterance.lang = "he-IL";
+        utterance.rate = 0.9;
+
+        utterance.onend = resolve;
 
         speechSynthesis.speak(utterance);
     });
 }
 
-function wait(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
+startBtn.addEventListener("click", async () => {
 
-async function listenForYes(timeoutMs = 6000) {
+    startBtn.disabled = true;
 
-    return new Promise(resolve => {
+    statusDiv.innerHTML = "Requesting microphone permission...";
 
-        const SpeechRecognition =
-            window.SpeechRecognition ||
-            window.webkitSpeechRecognition;
+    await requestMic();
 
-        if (!SpeechRecognition) {
-            resolve(false);
-            return;
-        }
+    statusDiv.innerHTML += "<br>Attempting Hebrew speech...";
 
-        const recognition = new SpeechRecognition();
+    await speakHebrew();
 
-        recognition.lang = "en-US";
-        recognition.interimResults = false;
-        recognition.maxAlternatives = 3;
-
-        let finished = false;
-
-        const finish = (result) => {
-            if (finished) return;
-            finished = true;
-
-            try {
-                recognition.stop();
-            } catch(e) {}
-
-            resolve(result);
-        };
-
-        recognition.onresult = (event) => {
-
-            let transcript = "";
-
-            for (let i = 0; i < event.results.length; i++) {
-                transcript += event.results[i][0].transcript + " ";
-            }
-
-            transcript = transcript.toLowerCase();
-
-            statusEl.textContent = "Heard: " + transcript.trim();
-
-            if (transcript.includes("yes")) {
-                finish(true);
-            } else {
-                finish(false);
-            }
-        };
-
-        recognition.onerror = () => finish(false);
-        recognition.onend = () => finish(false);
-
-        recognition.start();
-
-        setTimeout(() => finish(false), timeoutMs);
-    });
-}
-
-async function runCall() {
-
-    statusEl.textContent = "Connected";
-
-    // Wait 5 seconds
-    await wait(5000);
-
-    statusEl.textContent = "Speaking Hebrew";
-
-    // Shalom
-    await speak("שלום", "he-IL");
-
-    // Genesis 1:1
-    await speak(
-        "בְּרֵאשִׁית בָּרָא אֱלֹהִים אֵת הַשָּׁמַיִם וְאֵת הָאָרֶץ",
-        "he-IL"
-    );
-
-    // Wait 5 seconds
-    await wait(5000);
-
-    statusEl.textContent = "Asking Question";
-
-    await speak(
-        "Did that come through clearly?",
-        "en-US"
-    );
-
-    statusEl.textContent = "Listening...";
-
-    const heardYes = await listenForYes(6000);
-
-    if (heardYes) {
-
-        statusEl.textContent = "Positive Response";
-
-        // "Very good" = טוב מאוד
-        await speak("טוב מאוד", "he-IL");
-
-    } else {
-
-        statusEl.textContent = "Negative Response";
-
-        await speak("Drat", "en-US");
-    }
-
-    statusEl.textContent = "Call Complete";
-}
-
-window.addEventListener("load", () => {
-
-    // Give iPhone a moment to initialize voices
-    setTimeout(runCall, 1000);
+    statusDiv.innerHTML += "<br>Finished speaking.";
 
 });
+
 </script>
 
 </body>
