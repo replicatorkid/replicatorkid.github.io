@@ -35,10 +35,10 @@
 
 <script>
 const words = [
-    "SouthonKrumrey St",
-    "EastonSuhrke Rd",
-    "NorthonState 67",
-    "EastonCounty J",
+    "South on Krumrey St",
+    "East on Suhrke Rd",
+    "North on State 67",
+    "East on County J",
     "W4391",
     "Root"
 ];
@@ -47,6 +47,9 @@ const container = document.getElementById("wordColumn");
 
 words.forEach(text => {
 
+    // Remove whitespaces
+    word = word.replace(/\s+/g, "");
+    
     // Scramble the letters of this word
     let chars = text.split("");
 
