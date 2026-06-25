@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Centered Word Column</title>
+
+<style>
+    body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: white;
+        font-family: Arial, sans-serif;
+    }
+
+    #wordColumn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 30px; /* Vertical spacing between lines */
+    }
+
+    .word {
+        font-size: 24px;
+        text-align: center;
+    }
+</style>
+</head>
+<body>
+
+<div id="wordColumn"></div>
+
+<script>
+const words = [
+    "APPLE",
+    "BANANA",
+    "CHERRY",
+    "DRAGONFRUIT",
+    "ELDERBERRY",
+    "FIG"
+];
+
+// Fisher-Yates shuffle
+for (let i = words.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [words[i], words[j]] = [words[j], words[i]];
+}
+
+const container = document.getElementById("wordColumn");
+
+words.forEach(text => {
+    const div = document.createElement("div");
+    div.className = "word";
+    div.textContent = text;
+    container.appendChild(div);
+});
+</script>
+
+</body>
+</html>
