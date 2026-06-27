@@ -109,6 +109,7 @@ input.allowed {
 
 const ROWS = 6;
 const COLS = 12;
+const DEFAULT_ALLOWED = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', '.', '-', '+', '='];
 
 const allowedRow = document.getElementById("allowedRow");
 const gridContainer = document.getElementById("gridContainer");
@@ -124,6 +125,11 @@ for (let i = 0; i < 20; i++) {
     const box = document.createElement("input");
     box.className = "allowed";
     box.maxLength = 1;
+
+    // Populate with default characters
+    if (i < DEFAULT_ALLOWED.length) {
+        box.value = DEFAULT_ALLOWED[i];
+    }
 
     box.addEventListener("input", () => {
         box.value = box.value.toUpperCase();
