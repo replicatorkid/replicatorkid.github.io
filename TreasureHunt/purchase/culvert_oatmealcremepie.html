@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>MISSION TRANSMISSION</title>
+
+<style>
+html, body{
+    margin:0;
+    overflow:hidden;
+    background:#000;
+    height:100%;
+    font-family:Consolas, Courier New, monospace;
+}
+
+body{
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+}
+
+.banner{
+    color:#ff3b3b;
+    text-align:center;
+    font-size:18px;
+    letter-spacing:4px;
+    padding:10px;
+    border-top:2px solid #900;
+    border-bottom:2px solid #900;
+    background:#180000;
+    text-shadow:0 0 10px red;
+}
+
+.viewport{
+    flex:1;
+    overflow:hidden;
+    display:flex;
+    align-items:center;
+}
+
+.marquee{
+    white-space:nowrap;
+    color:#44ff44;
+    font-size:34px;
+    font-weight:bold;
+    text-shadow:
+        0 0 8px #00ff00,
+        0 0 16px #00ff00;
+
+    animation:scroll 28s linear infinite;
+}
+
+@keyframes scroll{
+    from{
+        transform:translateX(100%);
+    }
+    to{
+        transform:translateX(-100%);
+    }
+}
+
+/* CRT scanlines */
+body::after{
+    content:"";
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    background:
+    repeating-linear-gradient(
+        to bottom,
+        rgba(255,255,255,.05) 0px,
+        rgba(255,255,255,.05) 2px,
+        transparent 3px,
+        transparent 6px
+    );
+}
+</style>
+</head>
+
+<body>
+
+<div class="banner">
+*** CLASSIFIED TRANSMISSION ***
+</div>
+
+<div class="viewport">
+    <div class="marquee" id="marquee"></div>
+</div>
+
+<div class="banner">
+*** AUTHORIZED PERSONNEL ONLY ***
+</div>
+
+<script>
+
+const message =
+"ATTENTION! YOUR NEXT MISSION IS TO PURCHASE A BOX OF LITTLE DEBBIE OATMEAL CREME PIES, TWELVE-COUNT. IT IS IMPORTANT THAT YOU KEEP THIS ITEM IN YOUR POSSESSION FOR THE REMAINDER OF THE HUNT. USE IT, AND THE DEVICE YOU JUST RECOVERED, TO MAKE YOUR WAY TO THE NEXT CLUE. GOOD LUCK!";
+
+document.getElementById("marquee").textContent =
+message + "     ◆◆◆     " +
+message + "     ◆◆◆     " +
+message;
+
+</script>
+
+</body>
+</html>
