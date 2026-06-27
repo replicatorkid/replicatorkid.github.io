@@ -44,15 +44,28 @@ input.allowed {
     font-size: 18px;
 }
 
+.button-spacer {
+    width: 40px;
+    height: 36px;
+    margin: 0 8px;
+}
+
 .bottom-buttons {
     display: flex;
-    margin-left: 48px;
     gap: 4px;
-    margin-top: 8px;
 }
 
 .column-duplicate {
     background-color: #ff9999 !important;
+}
+
+.grid-wrapper {
+    display: flex;
+}
+
+.grid-controls {
+    display: flex;
+    flex-direction: column;
 }
 </style>
 </head>
@@ -63,9 +76,12 @@ input.allowed {
 <div id="allowedRow" class="allowed-row"></div>
 
 <h3>Grid</h3>
-<div id="gridContainer"></div>
-
-<div id="bottomButtons" class="bottom-buttons"></div>
+<div class="grid-wrapper">
+    <div class="grid-controls">
+        <div id="gridContainer"></div>
+        <div id="bottomButtons" class="bottom-buttons"></div>
+    </div>
+</div>
 
 <script>
 
@@ -122,6 +138,7 @@ for (let r = 0; r < ROWS; r++) {
         box.dataset.col = c;
 
         box.addEventListener("input", validateGridInput);
+        box.addEventListener("paste", (e) => handlePaste(e, r));
 
         gridDiv.appendChild(box);
     }
@@ -136,6 +153,11 @@ for (let r = 0; r < ROWS; r++) {
 //
 // Bottom buttons
 //
+bottomButtons.appendChild(document.createElement("div")); // spacer for left button
+const btnContainer = document.createElement("div");
+btnContainer.style.display = "flex";
+btnContainer.style.gap = "4px";
+
 for (let c = 0; c < COLS; c++) {
 
     const btn = document.createElement("button");
@@ -143,8 +165,10 @@ for (let c = 0; c < COLS; c++) {
     btn.textContent = "↓";
     btn.onclick = () => fillColumn(c);
 
-    bottomButtons.appendChild(btn);
+    btnContainer.appendChild(btn);
 }
+
+bottomButtons.appendChild(btnContainer);
 
 //
 // Helpers
@@ -179,6 +203,37 @@ function validateGridInput(event) {
         event.target.value = "";
     } else {
         event.target.value = value;
+    }
+
+    checkDuplicates();
+}
+
+function handlePaste(event, row) {
+    event.preventDefault();
+    
+    const pastedText = (event.clipboardData || window.clipboardData).getData("text");
+    const allowed = getAllowedCharacters();
+    
+    if (!pastedText) return;
+
+    // Filter pasted text to only include allowed characters
+    const validChars = pastedText
+        .toUpperCase()
+        .split("")
+        .filter(ch => allowed.includes(ch))
+        .slice(0, COLS);
+
+    // Fill the row starting from column 0
+    for (let c = 0; c < COLS; c++) {
+        const cell = document.querySelector(
+            `.cell[data-row="${row}"][data-col="${c}"]`
+        );
+
+        if (c < validChars.length) {
+            cell.value = validChars[c];
+        } else {
+            cell.value = "";
+        }
     }
 
     checkDuplicates();
