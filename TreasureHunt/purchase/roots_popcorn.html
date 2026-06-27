@@ -1,1 +1,244 @@
-Rio Road
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>MISSION TRANSMISSION</title>
+
+<style>
+/* ------------------------------------------------------------------
+   Page & layout
+   ------------------------------------------------------------------ */
+html, body{
+    margin:0;                 /* remove default page margin */
+    overflow:hidden;          /* hide scrollbars - fixed-display style */
+    background:#000;          /* black background for monitor/console look */
+    height:100%;
+    font-family:Consolas, Courier New, monospace; /* monospace feel */
+}
+
+body{
+    display:flex;
+    flex-direction:column;
+    justify-content:center;   /* center content vertically between banners */
+}
+
+/* ------------------------------------------------------------------
+   Top / bottom banners (static) - visual framing
+   ------------------------------------------------------------------ */
+.banner{
+    color:#ff3b3b;
+    text-align:center;
+    font-size:18px;
+    letter-spacing:4px;
+    padding:10px;
+    border-top:2px solid #900;
+    border-bottom:2px solid #900;
+    background:#180000;
+    text-shadow:0 0 10px red;
+}
+
+/* ------------------------------------------------------------------
+   The scrolling area (viewport) - keeps overflowing content hidden
+   ------------------------------------------------------------------ */
+.viewport{
+    flex:1;                   /* take remaining vertical space */
+    overflow:hidden;          /* hide parts of marquee outside this box */
+    display:flex;
+    align-items:center;       /* vertically center the single-line marquee */
+}
+
+/* ------------------------------------------------------------------
+   Marquee (the moving element)
+
+   Key goals & choices implemented here:
+   - The animation's start position is tied to the viewport (100vw), so
+     the marquee begins to enter the visible area almost immediately
+     regardless of the marquee element's width.
+   - The animation duration is computed dynamically in JavaScript so the
+     readable speed (pixels/second) is constant for short or very long
+     messages. This ensures a consistent, readable pace and that the
+     text always begins to move visibly right away.
+   - We keep `infinite` so the animation repeats forever.
+   ------------------------------------------------------------------ */
+.marquee{
+    white-space:nowrap;       /* keep everything on a single long line */
+    color:#44ff44;
+    font-size:68px;
+    font-weight:bold;
+    text-shadow:
+        0 0 8px #00ff00,
+        0 0 16px #00ff00;
+
+    display:inline-block;    /* let the element size to its content width */
+    will-change:transform;   /* hint for smoother animations */
+    transform:translateZ(0); /* promote to its own layer for performance */
+
+    /* The animation name & timing are set here. The duration will be
+       overridden by JavaScript to keep a constant readable speed. We
+       provide a sensible fallback duration in CSS in case JS is disabled. */
+    animation:scroll 12s linear infinite;
+}
+
+/* ------------------------------------------------------------------
+   Keyframes: move from just off the right edge of the viewport to
+   fully left of the element's own width. Using 100vw for the start
+   ties the beginning to the viewport width, so the visible arrival
+   will be quick even if the marquee content is very wide.
+
+   Explanation:
+   - from { translateX(100vw); } places the element just to the right
+     of the viewport (not a fraction of the element width).
+   - to   { translateX(-100%); } moves the element left by its own width
+     so it ends fully off-screen to the left.
+
+   Together the element travels a distance equal to (viewport width +
+   element width) which is what our JS uses to compute a readable duration.
+   ------------------------------------------------------------------ */
+@keyframes scroll{
+    from{ transform:translateX(100vw); }
+    to  { transform:translateX(-100%); }
+}
+
+/* ------------------------------------------------------------------
+   CRT scanlines overlay (stylistic) - unobtrusive visual effect
+   ------------------------------------------------------------------ */
+body::after{
+    content:"";
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    background:
+    repeating-linear-gradient(
+        to bottom,
+        rgba(255,255,255,.05) 0px,
+        rgba(255,255,255,.05) 2px,
+        transparent 3px,
+        transparent 6px
+    );
+}
+</style>
+</head>
+
+<body>
+
+<div class="banner">
+*** CLASSIFIED TRANSMISSION ***
+</div>
+
+<div class="viewport">
+    <!-- This is the element that will move. content is injected by JS. -->
+    <div class="marquee" id="marquee"></div>
+</div>
+
+<div class="banner">
+*** AUTHORIZED PERSONNEL ONLY ***
+</div>
+
+<script>
+/* ------------------------------------------------------------------
+   JavaScript: builds the message, injects it into the marquee element,
+   and computes an animation duration so the scroll speed is readable
+   regardless of how long the message is.
+
+   Strategy and reasoning:
+   - We want the marquee to "start to scroll almost immediately" even
+     when the content is long. Putting the `from` transform at 100vw
+     ensures the animation begins just off the viewport's right edge.
+   - To ensure a consistent perceived speed across different message
+     lengths, compute the total distance the element must travel (element
+     width + viewport width) and divide by a target pixels-per-second
+     speed to obtain the animation duration in seconds.
+   - Clamp the duration to a reasonable range so it doesn't become
+     absurdly short or long for extreme widths.
+   - Recompute on window resize so the animation remains consistent if
+     the user resizes the browser.
+   ------------------------------------------------------------------ */
+
+/* The textual message to display. You can change this freely. Keeping
+   it readable and not excessively long will make the marquee easier to
+   read; the JS below will handle arbitrary lengths, however. */
+const message =
+"ATTENTION! YOUR NEXT MISSION IS TO PURCHASE A BAG OF SMARTFOOD BRAND POPCORN, WHITE CHEDDAR, 6OZ." +
+"    IT IS CRITICALLY IMPORTANT THAT YOU DO NOT OPEN OR DISCARD THE ITEM FOR THE REMAINDER OF THE HUNT." +
+   "   USE THE ITEM AND THE DEVICE YOU JUST RECOVERED TO MAKE YOUR WAY TO THE NEXT CLUE. GOOD LUCK!";
+
+/* Put message into the marquee. Repeating the message can make the
+   motion appear more continuous with less empty gap between repeats.
+   If you prefer a single instance of the message, remove the repetition.
+   Here we repeat twice with a separator to make the loop feel natural
+   while keeping the total width reasonable. */
+const separator = "     ◆◆◆     ";
+const marqueeText = message + separator + message;
+
+const marqueeEl = document.getElementById('marquee');
+marqueeEl.textContent = marqueeText;
+
+/* Compute and set a duration for the CSS animation so the scroll speed
+   (in pixels per second) feels readable for most messages. */
+function setMarqueeSpeed() {
+    // Choose a readable speed in pixels per second. Lower = slower.
+    const pixelsPerSecond = 110; // ~100px/s is a comfortable reading speed
+
+    // Measured distance the animation needs to cover: element width + viewport width
+    const elementWidth = marqueeEl.offsetWidth;      // width of the rendered text element
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+    const distancePx = elementWidth + viewportWidth;
+
+    // Compute duration (seconds) = distance / speed
+    let durationSec = distancePx / pixelsPerSecond;
+
+    // Clamp the duration to sensible bounds so extreme values don't feel wrong
+    const minDuration = 6;   // never faster than 6s per full travel
+    const maxDuration = 40;  // never slower than 40s per full travel
+    durationSec = Math.max(minDuration, Math.min(maxDuration, durationSec));
+
+    // Apply the duration directly to the element's animation-duration style
+    // This overrides the CSS default and takes effect immediately.
+    marqueeEl.style.animationDuration = durationSec + 's';
+
+    // (Optional) expose the computed duration as a data attribute for debugging/inspection
+    marqueeEl.setAttribute('data-duration-sec', durationSec.toFixed(2));
+}
+
+// Run immediately after the element is in the DOM and sizes are known.
+// The script is placed after the element in the HTML so this will run
+// as soon as the file executes. If you moved the script to the head,
+// wrap this call in DOMContentLoaded.
+setMarqueeSpeed();
+
+// Recompute when the window is resized so the speed remains consistent
+// with the new viewport width. Debounce to avoid spamming calculations.
+let resizeTimer = null;
+window.addEventListener('resize', () => {
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+        setMarqueeSpeed();
+        resizeTimer = null;
+    }, 150);
+});
+
+/* Notes on behavior and alternatives:
+
+   - Starting position (translateX(100vw)) ensures the text begins just off
+     the right edge of the viewport, so the first visible movement occurs
+     quickly after the page opens, even if the element is very wide.
+
+   - Using a JS-computed animation duration keeps the perceived speed
+     (px/s) consistent regardless of message length. If you prefer a
+     fixed duration, you can set animation-duration in the CSS and remove
+     the JS calculation.
+
+   - If you want a perfectly seamless continuous marquee (no gap between
+     repeats) you'd typically duplicate the message until it fills at
+     least viewport width and use different keyframes. The current
+     approach repeats the message twice and will still have a gap when
+     the animation cycles; if that matters I can convert this to a
+     seamless generator.
+*/
+
+</script>
+
+</body>
+</html>
