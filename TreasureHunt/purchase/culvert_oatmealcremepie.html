@@ -161,8 +161,8 @@ body::after{
    read; the JS below will handle arbitrary lengths, however. */
 const message =
 "ATTENTION! YOUR NEXT MISSION IS TO PURCHASE A BOX OF LITTLE DEBBIE OATMEAL CREME PIES, TWELVE-COUNT." +
-"    IT IS IMPORTANT THAT YOU KEEP THIS ITEM IN YOUR POSSESSION FOR THE REMAINDER OF THE HUNT." +
-   "   USE IT AND THE DEVICE YOU JUST RECOVERED TO MAKE YOUR WAY TO THE NEXT CLUE. GOOD LUCK, AGENT P!";
+"    IT IS CRITICALLY IMPORTANT THAT YOU DO NOT OPEN OR DISCARD THE ITEM FOR THE REMAINDER OF THE HUNT." +
+   "   USE THE ITEM AND THE DEVICE YOU JUST RECOVERED TO MAKE YOUR WAY TO THE NEXT CLUE. GOOD LUCK!";
 
 /* Put message into the marquee. Repeating the message can make the
    motion appear more continuous with less empty gap between repeats.
@@ -179,7 +179,7 @@ marqueeEl.textContent = marqueeText;
    (in pixels per second) feels readable for most messages. */
 function setMarqueeSpeed() {
     // Choose a readable speed in pixels per second. Lower = slower.
-    const pixelsPerSecond = 100; // ~100px/s is a comfortable reading speed
+    const pixelsPerSecond = 110; // ~100px/s is a comfortable reading speed
 
     // Measured distance the animation needs to cover: element width + viewport width
     const elementWidth = marqueeEl.offsetWidth;      // width of the rendered text element
