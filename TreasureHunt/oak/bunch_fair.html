@@ -1,2 +1,192 @@
-Bunch
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mystery Challenge</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&display=swap" rel="stylesheet">
+
+<style>
+    body {
+        margin: 0;
+        min-height: 100vh;
+        background: #f4f0e6;
+        color: #2d2418;
+        font-family: "Cinzel", Georgia, serif;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .riddle-container {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 40px;
+    }
+
+    .riddle {
+        max-width: 800px;
+        text-align: center;
+        font-size: 1.4rem;
+        line-height: 1.8;
+        letter-spacing: 0.05em;
+    }
+
+    .puzzle-area {
+        flex: 2;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        padding-bottom: 60px;
+    }
+
+    .puzzle-box {
+        width: min(800px, 90%);
+    }
+
+    .question-row {
+        display: flex;
+        align-items: center;
+        margin: 12px 0;
+        gap: 12px;
+    }
+
+    .question-label {
+        flex: 1;
+        text-align: left;
+        font-size: 1rem;
+    }
+
+    .digit-input {
+        width: 42px;
+        height: 42px;
+        text-align: center;
+        font-size: 1.3rem;
+        font-family: inherit;
+        border: 2px solid #6b5b3e;
+        border-radius: 4px;
+        background: #fffdf8;
+    }
+
+    .submit-row {
+        text-align: center;
+        margin-top: 30px;
+    }
+
+    button {
+        font-family: inherit;
+        font-size: 1rem;
+        padding: 10px 28px;
+        cursor: pointer;
+        border: 2px solid #6b5b3e;
+        background: #d8ccb1;
+        color: #2d2418;
+        border-radius: 5px;
+    }
+
+    button:hover {
+        background: #cbbd9d;
+    }
+
+    .error {
+        text-align: center;
+        margin-top: 15px;
+        color: #8b0000;
+        min-height: 1.5em;
+    }
+</style>
+</head>
+<body>
+
+<div class="riddle-container">
+    <div class="riddle">
+        Mural
+    </div>
+</div>
+
+<div class="puzzle-area">
+    <div class="puzzle-box">
+
+        <div class="question-row">
+            <div class="question-label">How many X are there in Y?</div>
+            <input class="digit-input" id="a1" maxlength="1">
+        </div>
+
+        <div class="question-row">
+            <div class="question-label">How many X are there in Y?</div>
+            <input class="digit-input" id="a2" maxlength="1">
+        </div>
+
+        <div class="question-row">
+            <div class="question-label">How many X are there in Y?</div>
+            <input class="digit-input" id="a3" maxlength="1">
+        </div>
+
+        <div class="question-row">
+            <div class="question-label">How many X are there in Y?</div>
+            <input class="digit-input" id="a4" maxlength="1">
+        </div>
+
+        <div class="question-row">
+            <div class="question-label">How many X are there in Y?</div>
+            <input class="digit-input" id="a5" maxlength="1">
+        </div>
+
+        <div class="question-row">
+            <div class="question-label">How many X are there in Y?</div>
+            <input class="digit-input" id="a6" maxlength="1">
+        </div>
+
+        <div class="submit-row">
+            <button onclick="checkAnswers()">Submit</button>
+        </div>
+
+        <div class="error" id="errorMessage"></div>
+
+    </div>
+</div>
+
+<script>
+function checkAnswers() {
+
+    const answers = [
+        "3",
+        "7",
+        "1",
+        "5",
+        "2",
+        "9"
+    ];
+
+    const entered = [
+        document.getElementById("a1").value.trim(),
+        document.getElementById("a2").value.trim(),
+        document.getElementById("a3").value.trim(),
+        document.getElementById("a4").value.trim(),
+        document.getElementById("a5").value.trim(),
+        document.getElementById("a6").value.trim()
+    ];
+
+    const correct = answers.every((value, index) => value === entered[index]);
+
+    if (correct) {
+        window.location.href = "http://replicatorkid.github.io/TreasureHunt/hottercolder_k.html";
+    } else {
+        document.getElementById("errorMessage").textContent =
+            "The numbers do not appear to be correct.";
+    }
+}
+
+// Allow only digits
+document.querySelectorAll('.digit-input').forEach(box => {
+    box.addEventListener('input', function() {
+        this.value = this.value.replace(/[^0-9]/g, '');
+    });
+});
+</script>
+
+</body>
+</html>
