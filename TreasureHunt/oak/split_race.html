@@ -103,7 +103,10 @@
 
 <div class="riddle-container">
     <div class="riddle">
-        Split_Race
+        Father Abram had some sons, who went to see the races.
+        And there the scene was taken down; the sons drawn in their places.
+        The wall doth now the answers hold, emblazoned in the pigments.
+        And you must find them, wanderers, or weep beneath your wigments.
     </div>
 </div>
 
@@ -111,32 +114,32 @@
     <div class="puzzle-box">
 
         <div class="question-row">
-            <div class="question-label">How many X are there in Y?</div>
+            <div class="question-label">1st</div>
             <input class="digit-input" id="a1" maxlength="1">
         </div>
 
         <div class="question-row">
-            <div class="question-label">How many X are there in Y?</div>
+            <div class="question-label">2nd</div>
             <input class="digit-input" id="a2" maxlength="1">
         </div>
 
         <div class="question-row">
-            <div class="question-label">How many X are there in Y?</div>
+            <div class="question-label">Grounded Flags</div>
             <input class="digit-input" id="a3" maxlength="1">
         </div>
 
         <div class="question-row">
-            <div class="question-label">How many X are there in Y?</div>
+            <div class="question-label">Ungrounded flags</div>
             <input class="digit-input" id="a4" maxlength="1">
         </div>
 
         <div class="question-row">
-            <div class="question-label">How many X are there in Y?</div>
+            <div class="question-label">Finished hats</div>
             <input class="digit-input" id="a5" maxlength="1">
         </div>
 
         <div class="question-row">
-            <div class="question-label">How many X are there in Y?</div>
+            <div class="question-label">Unfinished hats</div>
             <input class="digit-input" id="a6" maxlength="1">
         </div>
 
@@ -154,10 +157,10 @@ function checkAnswers() {
 
     const answers = [
         "3",
-        "7",
-        "1",
+        "6",
+        "6",
         "5",
-        "2",
+        "3",
         "9"
     ];
 
@@ -173,7 +176,7 @@ function checkAnswers() {
     const correct = answers.every((value, index) => value === entered[index]);
 
     if (correct) {
-        window.location.href = "http://replicatorkid.github.io/TreasureHunt/hottercolder_k.html";
+        window.location.href = "http://replicatorkid.github.io/TreasureHunt/hottercolder/n.html";
     } else {
         document.getElementById("errorMessage").textContent =
             "The numbers do not appear to be correct.";
