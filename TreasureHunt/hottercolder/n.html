@@ -22,6 +22,12 @@
             margin-bottom: 20px;
             min-height: 60px;
         }
+        #distanceLabel {
+            font-size: 48px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            min-height: 60px;
+        }
         #distance {
             font-size: 24px;
             color: #666;
@@ -34,25 +40,17 @@
         #feedbackButton {
             display: none;
         }
-        #distanceLabel {
-            font-size: 20px;
-            color: #333;
-            margin-top: 20px;
-            min-height: 30px;
-        }
     </style>
 </head>
 <body>
 
 <div id="message">Tap to Start</div>
-<div id="distance"></div>
+<div id="distanceLabel"></div>
 <button id="startBtn">Begin Navigation</button>
 <button id="feedbackButton">Check Distance</button>
-<div id="distanceLabel"></div>
 
 <script>
 const message = document.getElementById("message");
-const distance = document.getElementById("distance");
 const distanceLabel = document.getElementById("distanceLabel");
 const startBtn = document.getElementById("startBtn");
 const feedbackButton = document.getElementById("feedbackButton");
@@ -93,10 +91,16 @@ function distanceMeters(lat1, lon1, lat2, lon2) {
 // 4. FORMAT DISTANCE
 // -----------------------------
 function formatDistance(meters) {
-    if (meters < 1000) {
-        return Math.round(meters) + " m";
+    const METERS_PER_MILE = 1609.34;
+    const METERS_PER_YARD = 0.9144;
+    
+    const miles = meters / METERS_PER_MILE;
+    
+    if (miles >= 0.25) {
+        return miles.toFixed(2) + " mi";
     } else {
-        return (meters / 1000).toFixed(2) + " km";
+        const yards = meters / METERS_PER_YARD;
+        return Math.round(yards) + " yd";
     }
 }
 
@@ -140,7 +144,7 @@ function provideFeedback() {
     lastDistance = currentDistance;
     
     // Update distance label
-    distanceLabel.textContent = "Distance: " + formatDistance(currentDistance);
+    distanceLabel.textContent = formatDistance(currentDistance);
     
     // Hide button for 1 second after feedback
     feedbackButton.style.display = "none";
