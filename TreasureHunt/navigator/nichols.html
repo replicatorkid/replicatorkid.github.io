@@ -21,6 +21,12 @@
             font-weight: bold;
             margin-bottom: 20px;
         }
+        #coordinates {
+            font-size: 20px;
+            color: #666;
+            margin-bottom: 30px;
+            min-height: 30px;
+        }
         button {
             font-size: 28px;
             padding: 16px 24px;
@@ -30,18 +36,21 @@
 <body>
 
 <div id="message">Tap to Start</div>
+<div id="coordinates"></div>
 <button id="startBtn">Begin Navigation</button>
 
 <script>
 const message = document.getElementById("message");
+const coordinates = document.getElementById("coordinates");
 const button = document.getElementById("startBtn");
 
 // -----------------------------
 // 1. ZONE DATA (your map layer)
 // -----------------------------
 const zones = [
+    //Minimal paths. No redundancies.
     {
-    street_a: "Nichol's Creek",
+ street_a: "Nichol's Creek",
     street_b: "Cedar Lane",
     lat: 43.685002,
     lon: -88.020335,
@@ -117,9 +126,12 @@ const zones = [
 // -----------------------------
 // 2. STATE TRACKING
 // -----------------------------
+let currentLat = null;
+let currentLon = null;
 let lastSpoken = {};
-const COOLDOWN_MS = 3000;
-let watchId = null; 
+const COOLDOWN_MS = 5000;
+let watchId = null;
+let isSpeaking = false;
 
 // -----------------------------
 // 3. DISTANCE FUNCTION
@@ -137,70 +149,83 @@ function distanceMeters(lat1, lon1, lat2, lon2) {
 }
 
 // -----------------------------
-// 4. TEXT TO SPEECH
+// 4. TEXT TO SPEECH (with global lock)
 // -----------------------------
 function speak(text) {
-    // Clear any previous hung utterances in iOS Safari queues
-    window.speechSynthesis.cancel(); 
+    if (isSpeaking) return; // Reject if already speaking
+    isSpeaking = true;
+    
+    window.speechSynthesis.cancel();
     
     const msg = new SpeechSynthesisUtterance(text);
     msg.rate = 1;
     msg.pitch = 1;
     
-    // Small timeout ensures the cancel event completes before speaking
+    msg.onend = () => { isSpeaking = false; };
+    msg.onerror = () => { isSpeaking = false; };
+    
     setTimeout(() => {
         window.speechSynthesis.speak(msg);
     }, 50);
 }
 
 // -----------------------------
-// 5. MAIN GPS LOOP
+// 5. START GPS DISPLAY (continuous coordinates update)
 // -----------------------------
-function startTracking() {
+function startGPSDisplay() {
     if (watchId !== null) return;
     
-    message.textContent = "Tracking GPS...";
-    button.style.display = "none";
-    
     watchId = navigator.geolocation.watchPosition((pos) => {
-        const lat = pos.coords.latitude;
-        const lon = pos.coords.longitude;
-        
-        // Output coordinates to the screen to confirm live tracking is processing
-        message.textContent = `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
-        
-        zones.forEach((z, i) => {
-            const d = distanceMeters(lat, lon, z.lat, z.lon);
-            if (d <= z.radius) {
-                const now = Date.now();
-                if (!lastSpoken[i] || now - lastSpoken[i] > COOLDOWN_MS) {
-                    message.textContent = z.message;
-                    speak(z.message);
-                    lastSpoken[i] = now;
-                }
-            }
-        });
+        currentLat = pos.coords.latitude;
+        currentLon = pos.coords.longitude;
+        coordinates.textContent = `Lat: ${currentLat.toFixed(4)}, Lon: ${currentLon.toFixed(4)}`;
     }, (err) => {
-        // Output specific error codes for easier mobile debugging
-        message.textContent = `GPS Error: ${err.message} (Code ${err.code})`;
+        coordinates.textContent = `GPS Error: ${err.message} (Code ${err.code})`;
     }, {
         enableHighAccuracy: true,
-        maximumAge: 0, 
+        maximumAge: 0,
         timeout: 10000
     });
 }
 
 // -----------------------------
-// 6. USER START (Optimized for iOS)
+// 6. CHECK DIRECTIONS (on button press)
+// -----------------------------
+function checkDirections() {
+    if (currentLat === null || currentLon === null) {
+        message.textContent = "Waiting for GPS...";
+        return;
+    }
+    
+    let foundZone = false;
+    zones.forEach((z) => {
+        const d = distanceMeters(currentLat, currentLon, z.lat, z.lon);
+        if (d <= z.radius) {
+            message.textContent = z.message;
+            speak(z.message);
+            foundZone = true;
+        }
+    });
+    
+    if (!foundZone) {
+        message.textContent = "Not at an intersection yet. Try again.";
+    }
+}
+
+// -----------------------------
+// 7. BUTTON HANDLER
 // -----------------------------
 button.addEventListener("click", () => {
-    message.textContent = "Initializing...";
-    
-    // 1. Force Speech API to unlock immediately inside the synchronous click path
-    speak("Navigation initiated");
-    
-    // 2. Fire tracking immediately instead of nesting it to bypass Chrome iOS context hanging
-    startTracking();
+    if (watchId === null) {
+        // First click: start GPS and change button text
+        message.textContent = "GPS Starting...";
+        speak("Navigation initiated");
+        startGPSDisplay();
+        button.textContent = "Check Direction";
+    } else {
+        // Subsequent clicks: check for directions
+        checkDirections();
+    }
 });
 </script>
 
