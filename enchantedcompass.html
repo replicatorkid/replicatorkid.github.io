@@ -34,12 +34,24 @@ svg{
     max-width:420px;
     max-height:420px;
 }
+    
+.lower{
+    flex-direction:column;
+}
+
+#distance{
+    margin-top:18px;
+    font-size:24px;
+    font-weight:bold;
+    text-align:center;
+    min-height:1.2em;
+}
 </style>
 </head>
 
 <body>
 
-<div class="half">
+<div class="half lower">
 
 <svg viewBox="0 0 200 200">
 
@@ -83,10 +95,18 @@ svg{
             stroke="black"
             stroke-width="2"/>
 
-    <text x="100" y="24" text-anchor="middle" font-size="14">N</text>
-    <text x="176" y="105" text-anchor="middle" font-size="14">E</text>
-    <text x="100" y="190" text-anchor="middle" font-size="14">S</text>
-    <text x="24" y="105" text-anchor="middle" font-size="14">W</text>
+    <text x="100" y="20"
+          text-anchor="middle"
+          dominant-baseline="middle">N</text>
+    <text x="180" y="100"
+          text-anchor="middle"
+          dominant-baseline="middle">E</text>
+    <text x="100" y="180"
+          text-anchor="middle"
+          dominant-baseline="middle">S</text>
+    <text x="20" y="100"
+          text-anchor="middle"
+          dominant-baseline="middle">W</text>
 
     <g id="needle2">
         <polygon points="100,34 106,100 100,94 94,100"
@@ -96,6 +116,8 @@ svg{
 
 </svg>
 
+    <div id="distance">---</div>
+    
 </div>
 
 <script>
@@ -105,7 +127,8 @@ let targetAngle=180;
 
 const needle1=document.getElementById("needle1");
 const needle2=document.getElementById("needle2");
-
+const distanceDisplay = document.getElementById("distance");
+    
 function animate(){
 
     northAngle+=0.5;
