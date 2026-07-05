@@ -21,6 +21,26 @@ body{
     flex-direction:column;
 }
 
+/* ===== START OVERLAY ===== */
+#overlay{
+    position:fixed;
+    inset:0;
+    background:white;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    z-index:10;
+}
+
+#startButton{
+    font-size:22px;
+    padding:16px 28px;
+    border:2px solid black;
+    background:white;
+    cursor:pointer;
+}
+
+/* ===== LAYOUT ===== */
 .half{
     flex:1;
     display:flex;
@@ -34,48 +54,41 @@ svg{
     max-width:420px;
     max-height:420px;
 }
-    
-.lower{
-    flex-direction:column;
-}
-
-#distance{
-    margin-top:18px;
-    font-size:24px;
-    font-weight:bold;
-    text-align:center;
-    min-height:1.2em;
-}
 </style>
 </head>
 
 <body>
 
-<div class="half lower">
+<!-- START OVERLAY -->
+<div id="overlay">
+    <button id="startButton">Tap to Start</button>
+</div>
+
+<div class="half">
 
 <svg viewBox="0 0 200 200">
 
-    <!-- Outer Circle -->
     <circle cx="100" cy="100" r="90"
             fill="white"
             stroke="black"
             stroke-width="2"/>
 
-    <!-- Cardinal Labels -->
     <text x="100" y="20"
       text-anchor="middle"
       dominant-baseline="middle">N</text>
+
     <text x="180" y="100"
           text-anchor="middle"
           dominant-baseline="middle">E</text>
+
     <text x="100" y="180"
           text-anchor="middle"
           dominant-baseline="middle">S</text>
+
     <text x="20" y="100"
           text-anchor="middle"
           dominant-baseline="middle">W</text>
 
-    <!-- Needle -->
     <g id="needle1">
         <polygon points="100,34 106,100 100,94 94,100"
                  fill="black"/>
@@ -96,14 +109,17 @@ svg{
             stroke-width="2"/>
 
     <text x="100" y="20"
-          text-anchor="middle"
-          dominant-baseline="middle">N</text>
+      text-anchor="middle"
+      dominant-baseline="middle">N</text>
+
     <text x="180" y="100"
           text-anchor="middle"
           dominant-baseline="middle">E</text>
+
     <text x="100" y="180"
           text-anchor="middle"
           dominant-baseline="middle">S</text>
+
     <text x="20" y="100"
           text-anchor="middle"
           dominant-baseline="middle">W</text>
@@ -116,23 +132,56 @@ svg{
 
 </svg>
 
-    <div id="distance">---</div>
-    
 </div>
 
 <script>
 
-let northAngle=0;
-let targetAngle=180;
+let northAngle = 0;
+let targetAngle = 180;
 
-const needle1=document.getElementById("needle1");
-const needle2=document.getElementById("needle2");
-const distanceDisplay = document.getElementById("distance");
-    
+const needle1 = document.getElementById("needle1");
+const needle2 = document.getElementById("needle2");
+const overlay = document.getElementById("overlay");
+const startButton = document.getElementById("startButton");
+
+let started = false;
+
+/* ===== START HANDLER ===== */
+startButton.addEventListener("click", async () => {
+    if (started) return;
+    started = true;
+
+    try {
+        // Request GPS permission (iOS requires gesture)
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(() => {}, () => {}, {
+                enableHighAccuracy: true
+            });
+        }
+
+        // Request compass/orientation permission (iOS only)
+        if (typeof DeviceOrientationEvent !== "undefined" &&
+            typeof DeviceOrientationEvent.requestPermission === "function") {
+
+            const response = await DeviceOrientationEvent.requestPermission();
+            // we don't use the result yet, just requesting access
+        }
+
+    } catch (e) {
+        // silent fail (no UI, as requested)
+    }
+
+    // hide overlay
+    overlay.style.display = "none";
+
+    animate();
+});
+
+/* ===== EXISTING ANIMATION ===== */
 function animate(){
 
-    northAngle+=0.5;
-    targetAngle-=0.8;
+    northAngle += 0.5;
+    targetAngle -= 0.8;
 
     needle1.setAttribute(
         "transform",
@@ -146,8 +195,6 @@ function animate(){
 
     requestAnimationFrame(animate);
 }
-
-animate();
 
 </script>
 
