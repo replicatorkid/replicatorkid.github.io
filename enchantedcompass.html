@@ -164,13 +164,24 @@
     coordsEl.textContent = `Current: ${lat1.toFixed(6)}, ${lon1.toFixed(6)} • Target: ${lat2.toFixed(6)}, ${lon2.toFixed(6)}`;
     statusEl.textContent = `Status: tracking`;
 
-    if (lastHeading !== null){
-      // compute rotations
+    // Only apply rotations when both numbers are finite
+    if (Number.isFinite(lastHeading) && Number.isFinite(bearing)){
       const targetRotation = (bearing - lastHeading + 360) % 360; // degrees clockwise from top
       const northRotation = (360 - lastHeading) % 360; // point to north
       // Apply transforms (use rotate clockwise)
-      targetNeedle.setAttribute('transform', `rotate(${targetRotation})`);
-      northNeedle.setAttribute('transform', `rotate(${northRotation})`);
+      try {
+        targetNeedle.setAttribute('transform', `rotate(${targetRotation})`);
+        northNeedle.setAttribute('transform', `rotate(${northRotation})`);
+        // ensure visible
+        targetNeedle.style.display = '';
+        northNeedle.style.display = '';
+      } catch (e){
+        console.warn('Failed to set transform', e);
+      }
+    } else {
+      // don't apply invalid transforms; keep default positions visible
+      targetNeedle.style.display = '';
+      northNeedle.style.display = '';
     }
   }
 
@@ -211,20 +222,22 @@
     // iOS provides webkitCompassHeading
     if (typeof e.webkitCompassHeading === 'number') {
       heading = e.webkitCompassHeading; // 0 = North
-    } else if (e.absolute === true && typeof e.alpha === 'number') {
+    } else if (typeof e.alpha === 'number') {
       // Many browsers give alpha as rotation around Z axis — convert to compass heading
       heading = (360 - e.alpha) % 360;
-    } else if (typeof e.alpha === 'number') {
-      // fallback guess
-      heading = (360 - e.alpha) % 360;
     }
-    if (heading !== null){
-      lastHeading = heading;
-      statusEl.textContent = `Heading: ${Math.round(heading)}°`;
-      updateUI();
-    } else {
+
+    // Guard against invalid readings — don't set NaN/undefined
+    if (!Number.isFinite(heading)){
+      // Some devices send an initial event with nulls; ignore it
+      // But update status so user knows we received something
       statusEl.textContent = 'Device orientation not available';
+      return;
     }
+
+    lastHeading = heading;
+    statusEl.textContent = `Heading: ${Math.round(heading)}°`;
+    updateUI();
   }
 
   async function enableMotionPermissionIfNeeded(){
