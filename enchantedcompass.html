@@ -21,7 +21,7 @@ body{
     flex-direction:column;
 }
 
-/* ===== START OVERLAY ===== */
+/* START OVERLAY */
 #overlay{
     position:fixed;
     inset:0;
@@ -37,10 +37,9 @@ body{
     padding:16px 28px;
     border:2px solid black;
     background:white;
-    cursor:pointer;
 }
 
-/* ===== LAYOUT ===== */
+/* LAYOUT */
 .half{
     flex:1;
     display:flex;
@@ -59,7 +58,6 @@ svg{
 
 <body>
 
-<!-- START OVERLAY -->
 <div id="overlay">
     <button id="startButton">Tap to Start</button>
 </div>
@@ -78,16 +76,16 @@ svg{
       dominant-baseline="middle">N</text>
 
     <text x="180" y="100"
-          text-anchor="middle"
-          dominant-baseline="middle">E</text>
+      text-anchor="middle"
+      dominant-baseline="middle">E</text>
 
     <text x="100" y="180"
-          text-anchor="middle"
-          dominant-baseline="middle">S</text>
+      text-anchor="middle"
+      dominant-baseline="middle">S</text>
 
     <text x="20" y="100"
-          text-anchor="middle"
-          dominant-baseline="middle">W</text>
+      text-anchor="middle"
+      dominant-baseline="middle">W</text>
 
     <g id="needle1">
         <polygon points="100,34 106,100 100,94 94,100"
@@ -113,16 +111,16 @@ svg{
       dominant-baseline="middle">N</text>
 
     <text x="180" y="100"
-          text-anchor="middle"
-          dominant-baseline="middle">E</text>
+      text-anchor="middle"
+      dominant-baseline="middle">E</text>
 
     <text x="100" y="180"
-          text-anchor="middle"
-          dominant-baseline="middle">S</text>
+      text-anchor="middle"
+      dominant-baseline="middle">S</text>
 
     <text x="20" y="100"
-          text-anchor="middle"
-          dominant-baseline="middle">W</text>
+      text-anchor="middle"
+      dominant-baseline="middle">W</text>
 
     <g id="needle2">
         <polygon points="100,34 106,100 100,94 94,100"
@@ -141,46 +139,66 @@ let targetAngle = 180;
 
 const needle1 = document.getElementById("needle1");
 const needle2 = document.getElementById("needle2");
+
 const overlay = document.getElementById("overlay");
 const startButton = document.getElementById("startButton");
 
-let started = false;
+/* ===== SENSOR STATE ===== */
+let rawHeading = 0;
 
-/* ===== START HANDLER ===== */
+/* ===== DEVICE ORIENTATION ===== */
+function handleOrientation(event) {
+
+    // iOS Safari (best case)
+    if (event.webkitCompassHeading !== undefined) {
+        rawHeading = event.webkitCompassHeading;
+        return;
+    }
+
+    // Android fallback (alpha-based)
+    if (event.alpha !== null) {
+        rawHeading = 360 - event.alpha;
+    }
+}
+
+/* ===== START ===== */
 startButton.addEventListener("click", async () => {
-    if (started) return;
-    started = true;
 
     try {
-        // Request GPS permission (iOS requires gesture)
+
+        // GPS permission (placeholder for later)
         if (navigator.geolocation) {
             navigator.geolocation.watchPosition(() => {}, () => {}, {
                 enableHighAccuracy: true
             });
         }
 
-        // Request compass/orientation permission (iOS only)
+        // Compass permission (iOS 13+)
         if (typeof DeviceOrientationEvent !== "undefined" &&
             typeof DeviceOrientationEvent.requestPermission === "function") {
 
-            const response = await DeviceOrientationEvent.requestPermission();
-            // we don't use the result yet, just requesting access
+            await DeviceOrientationEvent.requestPermission();
         }
 
+        // Listen for orientation events
+        window.addEventListener("deviceorientation", handleOrientation);
+
     } catch (e) {
-        // silent fail (no UI, as requested)
+        // silent fail
     }
 
-    // hide overlay
     overlay.style.display = "none";
 
     animate();
 });
 
-/* ===== EXISTING ANIMATION ===== */
+/* ===== ANIMATION LOOP ===== */
 function animate(){
 
-    northAngle += 0.5;
+    /* TOP COMPASS = REAL HEADING */
+    northAngle = -rawHeading;
+
+    /* BOTTOM COMPASS = STILL DUMMY */
     targetAngle -= 0.8;
 
     needle1.setAttribute(
