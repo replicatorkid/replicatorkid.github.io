@@ -34,6 +34,7 @@
   .meta{font-size:13px;color:var(--muted)}
   .hint{font-size:12px;color:var(--muted);margin-top:6px}
   footer{font-size:12px;color:var(--muted);text-align:center;padding:4px 0}
+  .debugBox{font-family:monospace;background:rgba(0,0,0,0.2);padding:8px;border-radius:8px;font-size:12px;color:var(--muted);max-height:80px;overflow:auto}
   @media (max-width:520px){
     .compass-wrap{flex-direction:column;align-items:center}
   }
@@ -51,7 +52,7 @@
       <button id="startBtn">Start Compass</button>
       <button id="stopBtn" style="display:none;background:#334155;color:var(--white)">Stop</button>
     </div>
-    <div class="hint">Tip: On iOS you must allow Motion & Orientation access after tapping Start; Safari will show a permission popup.</div>
+    <div class="hint">Tip: On iOS you must allow Motion & Orientation access after tapping Start; Safari will show a permission popup. Open the raw URL or GitHub Pages URL (not the GitHub preview).</div>
 
     <div class="compass-wrap">
       <div class="compass" aria-hidden="false">
@@ -90,6 +91,7 @@
         <div class="metric" id="bearing">Bearing — —</div>
         <div class="meta" id="coords">Current — —</div>
         <div class="meta" id="status">Status — waiting</div>
+        <div class="debugBox" id="debugBox" aria-hidden="true" style="display:none"></div>
       </div>
     </div>
 
@@ -142,6 +144,7 @@
   const bearingEl = document.getElementById('bearing');
   const coordsEl = document.getElementById('coords');
   const statusEl = document.getElementById('status');
+  const debugBox = document.getElementById('debugBox');
   const northNeedle = document.getElementById('northNeedle');
   const targetNeedle = document.getElementById('targetNeedle');
 
@@ -216,59 +219,89 @@
     statusEl.textContent = 'Status: stopped';
   }
 
-  // Device orientation handling (iOS requires requestPermission on user gesture)
-  function handleOrientationEvent(e){
+  // ===== orientation + debug improvements =====
+  let orientationReadyAt = 0; // timestamp after which we accept events
+
+  function debugStatus(msg){
+    try{
+      console.log(msg);
+      if (debugBox){
+        debugBox.style.display = 'block';
+        const text = typeof msg === 'string' ? msg : JSON.stringify(msg);
+        debugBox.textContent = text;
+      }
+      if (statusEl && typeof msg === 'string') statusEl.textContent = msg;
+    }catch(e){/* ignore */}
+  }
+
+  function handleOrientationEventSafe(e){
+    // show raw values for debugging
+    debugStatus({alpha: e.alpha, beta: e.beta, gamma: e.gamma, absolute: e.absolute, webkitCompassHeading: e.webkitCompassHeading});
+
+    // ignore initial noisy events for a short grace period
+    if (orientationReadyAt && Date.now() < orientationReadyAt){
+      debugStatus('Waiting for stable orientation...');
+      return;
+    }
+
     let heading = null;
-    // iOS provides webkitCompassHeading
     if (typeof e.webkitCompassHeading === 'number') {
-      heading = e.webkitCompassHeading; // 0 = North
+      heading = e.webkitCompassHeading; // iOS
     } else if (typeof e.alpha === 'number') {
-      // Many browsers give alpha as rotation around Z axis — convert to compass heading
+      // convert device alpha to compass heading (best-effort)
       heading = (360 - e.alpha) % 360;
     }
 
-    // Guard against invalid readings — don't set NaN/undefined
-    if (!Number.isFinite(heading)){
-      // Some devices send an initial event with nulls; ignore it
-      // But update status so user knows we received something
-      statusEl.textContent = 'Device orientation not available';
+    // If no usable heading yet, don't touch transforms
+    if (!Number.isFinite(heading)) {
+      debugStatus('Orientation event contained no finite heading — ignored');
       return;
     }
 
     lastHeading = heading;
-    statusEl.textContent = `Heading: ${Math.round(heading)}°`;
+    debugStatus(`Heading: ${Math.round(heading)}°`);
     updateUI();
   }
 
-  async function enableMotionPermissionIfNeeded(){
-    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-      // iOS 13+ requires permission
+  function handleDeviceMotionFallback(ev){
+    // For debugging only: show that motion events are firing
+    console.log('devicemotion', ev && ev.rotationRate, ev && ev.acceleration);
+  }
+
+  // call this from your start flow (must be a user gesture)
+  async function enableOrientationAndListen(){
+    // If platform requires requestPermission
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function'){
       try {
         const resp = await DeviceOrientationEvent.requestPermission();
-        if (resp === 'granted') {
-          window.addEventListener('deviceorientation', handleOrientationEvent, true);
-          return true;
-        } else {
-          statusEl.textContent = 'Motion permission denied';
+        if (resp !== 'granted'){
+          debugStatus('Motion permission denied');
           return false;
         }
-      } catch(err){
-        statusEl.textContent = 'Motion permission error';
+      } catch (err){
+        debugStatus('Motion permission error');
         return false;
       }
-    } else {
-      // non-iOS / older browsers
-      window.addEventListener('deviceorientation', handleOrientationEvent, true);
-      return true;
     }
+
+    // set a short grace period to ignore noisy initial events
+    orientationReadyAt = Date.now() + 1000;
+
+    // attach multiple listeners to increase chance of getting usable data
+    window.addEventListener('deviceorientation', handleOrientationEventSafe, true);
+    window.addEventListener('deviceorientationabsolute', handleOrientationEventSafe, true);
+    window.addEventListener('devicemotion', handleDeviceMotionFallback, true);
+
+    debugStatus('Listening for orientation events… (check console for raw events)');
+    return true;
   }
 
   // Start/stop handlers
   startBtn.addEventListener('click', async () => {
     statusEl.textContent = 'Requesting permissions...';
 
-    // Request motion permission (iOS) first (must be on user gesture)
-    const motionOk = await enableMotionPermissionIfNeeded();
+    // Request motion/orientation permission and start listening
+    const motionOk = await enableOrientationAndListen();
 
     // Request location; geolocation prompt will appear
     try {
@@ -281,9 +314,12 @@
 
   stopBtn.addEventListener('click', () => {
     stopGeolocation();
-    window.removeEventListener('deviceorientation', handleOrientationEvent, true);
+    window.removeEventListener('deviceorientation', handleOrientationEventSafe, true);
+    window.removeEventListener('deviceorientationabsolute', handleOrientationEventSafe, true);
+    window.removeEventListener('devicemotion', handleDeviceMotionFallback, true);
     lastHeading = null;
     statusEl.textContent = 'Stopped';
+    if (debugBox) debugBox.style.display = 'none';
   });
 
   // initialize ticks (visual)
@@ -307,7 +343,9 @@
   // cleanup on page hide
   window.addEventListener('pagehide', () => {
     stopGeolocation();
-    window.removeEventListener('deviceorientation', handleOrientationEvent, true);
+    window.removeEventListener('deviceorientation', handleOrientationEventSafe, true);
+    window.removeEventListener('deviceorientationabsolute', handleOrientationEventSafe, true);
+    window.removeEventListener('devicemotion', handleDeviceMotionFallback, true);
   });
 })();
 </script>
