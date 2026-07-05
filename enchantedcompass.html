@@ -24,13 +24,15 @@ body{
 .half{
     flex:1;
     display:flex;
-    justify-content:center;
+    justify-content:flex-start;
     align-items:center;
+    padding-top:18px;
+    box-sizing:border-box;
 }
 
 svg{
-    width:85vmin;
-    height:85vmin;
+    width:70vmin;
+    height:70vmin;
     max-width:420px;
     max-height:420px;
 }
@@ -54,9 +56,6 @@ svg{
     <text x="176" y="105" text-anchor="middle" font-size="14">E</text>
     <text x="100" y="190" text-anchor="middle" font-size="14">S</text>
     <text x="24" y="105" text-anchor="middle" font-size="14">W</text>
-
-    <!-- Tick Marks -->
-    <g id="ticks"></g>
 
     <!-- Needle -->
     <g id="needle1">
@@ -83,8 +82,6 @@ svg{
     <text x="100" y="190" text-anchor="middle" font-size="14">S</text>
     <text x="24" y="105" text-anchor="middle" font-size="14">W</text>
 
-    <g id="ticks2"></g>
-
     <g id="needle2">
         <polygon points="100,34 106,100 100,94 94,100"
                  fill="black"/>
@@ -96,39 +93,6 @@ svg{
 </div>
 
 <script>
-
-function makeTicks(groupID){
-
-    const group = document.getElementById(groupID);
-
-    for(let a=0; a<360; a+=15){
-
-        const line=document.createElementNS("http://www.w3.org/2000/svg","line");
-
-        const r1=(a%90===0)?78:82;
-        const r2=88;
-
-        const rad=a*Math.PI/180;
-
-        const x1=100+Math.sin(rad)*r1;
-        const y1=100-Math.cos(rad)*r1;
-
-        const x2=100+Math.sin(rad)*r2;
-        const y2=100-Math.cos(rad)*r2;
-
-        line.setAttribute("x1",x1);
-        line.setAttribute("y1",y1);
-        line.setAttribute("x2",x2);
-        line.setAttribute("y2",y2);
-        line.setAttribute("stroke","black");
-        line.setAttribute("stroke-width",(a%90===0)?2:1);
-
-        group.appendChild(line);
-    }
-}
-
-makeTicks("ticks");
-makeTicks("ticks2");
 
 let northAngle=0;
 let targetAngle=180;
