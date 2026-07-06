@@ -116,47 +116,40 @@ let rawHeading = 0;
 
 /* ===== DEVICE ORIENTATION ===== */
 function handleOrientation(event) {
-
-    // iOS Safari (best case)
+    // iOS Safari
     if (event.webkitCompassHeading !== undefined) {
         rawHeading = event.webkitCompassHeading;
         return;
     }
 
-    // Android fallback (alpha-based)
-    if (event.alpha !== null) {
+    // Android fallback - check for valid number, not just null
+    if (event.alpha !== null && event.alpha !== undefined) {
         rawHeading = 360 - event.alpha;
     }
 }
 
 /* ===== START ===== */
 startButton.addEventListener("click", async () => {
-
     try {
-
-        // GPS permission (placeholder for later)
         if (navigator.geolocation) {
             navigator.geolocation.watchPosition(() => {}, () => {}, {
                 enableHighAccuracy: true
             });
         }
 
-        // Compass permission (iOS 13+)
+        // iOS 13+ permission request
         if (typeof DeviceOrientationEvent !== "undefined" &&
             typeof DeviceOrientationEvent.requestPermission === "function") {
-
             await DeviceOrientationEvent.requestPermission();
         }
-
-        // Listen for orientation events
+        // Android doesn't need requestPermission, but listener still works
+        
         window.addEventListener("deviceorientation", handleOrientation);
-
     } catch (e) {
-        // silent fail
+        console.error("Orientation setup failed:", e);
     }
 
     overlay.style.display = "none";
-
     animate();
 });
 
