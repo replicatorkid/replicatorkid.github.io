@@ -75,10 +75,9 @@ function handleMotion(event) {
 // SENSOR FUSION (IMPORTANT)
 // --------------------
 function getSensorForce() {
-  //const tiltScale = 0.08;
-  const tiltScale = 0.0;
+  const tiltScale = 0.08;
   //const motionScale = 0.6;
-  const motionScale = -1.0;
+  const motionScale = -1.1;
 
   let fx = rawTiltX * tiltScale;
   let fy = rawTiltY * tiltScale;
@@ -87,8 +86,8 @@ function getSensorForce() {
   fy += rawMotionY * motionScale;
 
   // soft stabilization
-  fx *= 0.88;
-  fy *= 0.88;
+  fx *= 0.92;
+  fy *= 0.92;
 
   return { fx, fy };
 }
