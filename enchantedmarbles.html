@@ -27,7 +27,9 @@ const ctx = canvas.getContext("2d");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-// ---- MARBLE ----
+// --------------------
+// MARBLE STATE
+// --------------------
 const marble = {
   x: canvas.width / 2,
   y: canvas.height / 2,
@@ -36,21 +38,31 @@ const marble = {
   r: 20
 };
 
-// ---- PHYSICS SETTINGS ----
+// --------------------
+// SENSOR STATE
+// --------------------
 let rawTiltX = 0;
 let rawTiltY = 0;
 
 let rawMotionX = 0;
 let rawMotionY = 0;
 
-const damping = 0.98;
-const sensitivity = 0.15;
+// --------------------
+// SETTINGS
+// --------------------
+const damping = 0.985;
 
-// ---- INPUT ----
+// --------------------
+// INPUT: ORIENTATION
+// --------------------
 function handleOrientation(event) {
-  rawTiltX = event.gamma || 0;
-  rawTiltY = event.beta || 0;
+  rawTiltX = event.gamma || 0;      // left/right
+  rawTiltY = -(event.beta || 0);     // flipped for correct feel
 }
+
+// --------------------
+// INPUT: MOTION
+// --------------------
 function handleMotion(event) {
   const a = event.acceleration;
   if (!a) return;
@@ -58,47 +70,54 @@ function handleMotion(event) {
   rawMotionX = a.x || 0;
   rawMotionY = a.y || 0;
 }
-function getSensorForce() {
-  const tiltScale = 0.12;
-  const motionScale = 0.25;
 
-  // tilt = slow “gravity field”
+// --------------------
+// SENSOR FUSION (IMPORTANT)
+// --------------------
+function getSensorForce() {
+  const tiltScale = 0.08;
+  const motionScale = 0.6;
+
   let fx = rawTiltX * tiltScale;
   let fy = rawTiltY * tiltScale;
 
-  // motion = fast “inertial cancellation”
   fx -= rawMotionX * motionScale;
   fy += rawMotionY * motionScale;
 
-  // light smoothing (prevents jitter explosion)
-  fx *= 0.85;
-  fy *= 0.85;
+  // soft stabilization
+  fx *= 0.88;
+  fy *= 0.88;
 
   return { fx, fy };
 }
 
-// ---- START MOTION PERMISSION ----
+// --------------------
+// PERMISSION + START
+// --------------------
 document.getElementById("start").onclick = async () => {
   if (typeof DeviceOrientationEvent.requestPermission === "function") {
     const res = await DeviceOrientationEvent.requestPermission();
     if (res !== "granted") return;
   }
+
   window.addEventListener("deviceorientation", handleOrientation);
+  window.addEventListener("devicemotion", handleMotion);
+
   document.getElementById("start").style.display = "none";
 };
 
-// ---- UPDATE LOOP ----
+// --------------------
+// UPDATE LOOP
+// --------------------
 function update() {
-  // apply gravity
   const force = getSensorForce();
+
   marble.vx += force.fx;
   marble.vy += force.fy;
 
-  // damping
   marble.vx *= damping;
   marble.vy *= damping;
 
-  // integrate
   marble.x += marble.vx;
   marble.y += marble.vy;
 
@@ -113,7 +132,9 @@ function update() {
   requestAnimationFrame(update);
 }
 
-// ---- RENDER ----
+// --------------------
+// RENDER
+// --------------------
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -121,14 +142,14 @@ function draw() {
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(20, 20, canvas.width - 40, canvas.height - 40);
 
-  // marble (simple procedural shading)
+  // marble shading
   const grad = ctx.createRadialGradient(
     marble.x - 5, marble.y - 5, 2,
     marble.x, marble.y, marble.r
   );
 
   grad.addColorStop(0, "#ffffff");
-  grad.addColorStop(1, "#999999");
+  grad.addColorStop(1, "#9a9a9a");
 
   ctx.fillStyle = grad;
   ctx.beginPath();
@@ -136,6 +157,7 @@ function draw() {
   ctx.fill();
 }
 
+// start
 update();
 </script>
 
