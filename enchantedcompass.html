@@ -145,20 +145,39 @@ const startButton = document.getElementById("startButton");
 
 /* ===== SENSOR STATE ===== */
 let rawHeading = 0;
+let hasValidHeading = false;
 
-/* ===== DEVICE ORIENTATION ===== */
+/* ===== DEVICE ORIENTATION HANDLER (FIXED) ===== */
 function handleOrientation(event) {
 
-    // iOS Safari (best case)
-    if (event.webkitCompassHeading !== undefined) {
-        rawHeading = event.webkitCompassHeading;
+    // ----------------------------
+    // iOS (Safari / WebKit)
+    // ----------------------------
+    if (typeof event.webkitCompassHeading === "number") {
+        rawHeading = event.webkitCompassHeading; // already magnetic north
+        hasValidHeading = true;
         return;
     }
 
-    // Android fallback (alpha-based)
-    if (event.alpha !== null) {
-        rawHeading = 360 - event.alpha;
+    // ----------------------------
+    // Android / generic browsers
+    // ----------------------------
+    if (event.absolute === true && typeof event.alpha === "number") {
+
+        // alpha = rotation around z-axis
+        // BUT it is relative to device frame, not magnetic north directly
+
+        // Convert to compass heading:
+        // Android uses opposite convention from iOS
+        rawHeading = (360 - event.alpha) % 360;
+        hasValidHeading = true;
+        return;
     }
+
+    // ----------------------------
+    // fallback (no usable compass)
+    // ----------------------------
+    // do nothing - keep last good value
 }
 
 /* ===== START ===== */
@@ -196,7 +215,7 @@ startButton.addEventListener("click", async () => {
 function animate(){
 
     /* TOP COMPASS = REAL HEADING */
-    northAngle = -rawHeading;
+    northAngle = hasValidHeading ? -rawHeading : northAngle;
 
     /* BOTTOM COMPASS = STILL DUMMY */
     targetAngle -= 0.8;
