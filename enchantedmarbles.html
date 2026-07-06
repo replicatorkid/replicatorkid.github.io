@@ -57,7 +57,7 @@ const damping = 0.985;
 // --------------------
 function handleOrientation(event) {
   rawTiltX = event.gamma || 0;      // left/right
-  rawTiltY = -(event.beta || 0);     // flipped for correct feel
+  rawTiltY = event.beta || 0;     // up/down
 }
 
 // --------------------
