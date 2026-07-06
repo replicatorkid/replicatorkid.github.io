@@ -112,7 +112,8 @@ const overlay = document.getElementById("overlay");
 const startButton = document.getElementById("startButton");
 
 /* ===== SENSOR STATE ===== */
-let rawHeading = 0;
+// null = no valid heading yet
+let rawHeading = null;
 
 /* ===== DEVICE ORIENTATION HANDLER (ROBUST VERSION) ===== */
 function handleOrientation(event) {
@@ -141,7 +142,7 @@ function handleOrientation(event) {
     // ----------------------------
     // no usable data
     // ----------------------------
-    // keep last good value
+    // keep last good value (rawHeading)
 }
 
 /* ===== START ===== */
@@ -179,7 +180,9 @@ startButton.addEventListener("click", async () => {
 function animate(){
 
     /* TOP COMPASS = REAL HEADING */
-    northAngle = hasValidHeading ? -rawHeading : northAngle;
+    // previous code referenced an undefined `hasValidHeading` variable which threw
+    // a ReferenceError and stopped the animation loop. Instead check rawHeading.
+    northAngle = rawHeading !== null ? -rawHeading : northAngle;
 
     /* BOTTOM COMPASS = STILL DUMMY */
     targetAngle -= 0.9;
