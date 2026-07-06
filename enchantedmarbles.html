@@ -37,19 +37,44 @@ const marble = {
 };
 
 // ---- PHYSICS SETTINGS ----
-let gravityX = 0;
-let gravityY = 0;
+let rawTiltX = 0;
+let rawTiltY = 0;
+
+let rawMotionX = 0;
+let rawMotionY = 0;
 
 const damping = 0.98;
 const sensitivity = 0.15;
 
 // ---- INPUT ----
 function handleOrientation(event) {
-  // gamma = left/right tilt
-  // beta = front/back tilt
+  rawTiltX = event.gamma || 0;
+  rawTiltY = event.beta || 0;
+}
+function handleMotion(event) {
+  const a = event.acceleration;
+  if (!a) return;
 
-  gravityX = event.gamma * sensitivity;
-  gravityY = event.beta * sensitivity;
+  rawMotionX = a.x || 0;
+  rawMotionY = a.y || 0;
+}
+function getSensorForce() {
+  const tiltScale = 0.12;
+  const motionScale = 0.25;
+
+  // tilt = slow “gravity field”
+  let fx = rawTiltX * tiltScale;
+  let fy = rawTiltY * tiltScale;
+
+  // motion = fast “inertial cancellation”
+  fx -= rawMotionX * motionScale;
+  fy += rawMotionY * motionScale;
+
+  // light smoothing (prevents jitter explosion)
+  fx *= 0.85;
+  fy *= 0.85;
+
+  return { fx, fy };
 }
 
 // ---- START MOTION PERMISSION ----
@@ -65,8 +90,9 @@ document.getElementById("start").onclick = async () => {
 // ---- UPDATE LOOP ----
 function update() {
   // apply gravity
-  marble.vx += gravityX;
-  marble.vy += gravityY;
+  const force = getSensorForce();
+  marble.vx += force.fx;
+  marble.vy += force.fy;
 
   // damping
   marble.vx *= damping;
