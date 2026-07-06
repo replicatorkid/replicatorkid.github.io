@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Marble Test</title>
+<style>
+  body { margin: 0; overflow: hidden; background: #f4f4f4; }
+  canvas { display: block; }
+  button {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 10;
+    padding: 12px;
+  }
+</style>
+</head>
+<body>
+
+<button id="start">Enable Motion</button>
+<canvas id="c"></canvas>
+
+<script>
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+// ---- MARBLE ----
+const marble = {
+  x: canvas.width / 2,
+  y: canvas.height / 2,
+  vx: 0,
+  vy: 0,
+  r: 20
+};
+
+// ---- PHYSICS SETTINGS ----
+let gravityX = 0;
+let gravityY = 0;
+
+const damping = 0.98;
+const sensitivity = 0.15;
+
+// ---- INPUT ----
+function handleOrientation(event) {
+  // gamma = left/right tilt
+  // beta = front/back tilt
+
+  gravityX = event.gamma * sensitivity;
+  gravityY = event.beta * sensitivity;
+}
+
+// ---- START MOTION PERMISSION ----
+document.getElementById("start").onclick = async () => {
+  if (typeof DeviceOrientationEvent.requestPermission === "function") {
+    const res = await DeviceOrientationEvent.requestPermission();
+    if (res !== "granted") return;
+  }
+  window.addEventListener("deviceorientation", handleOrientation);
+  document.getElementById("start").style.display = "none";
+};
+
+// ---- UPDATE LOOP ----
+function update() {
+  // apply gravity
+  marble.vx += gravityX;
+  marble.vy += gravityY;
+
+  // damping
+  marble.vx *= damping;
+  marble.vy *= damping;
+
+  // integrate
+  marble.x += marble.vx;
+  marble.y += marble.vy;
+
+  // walls
+  if (marble.x < marble.r) { marble.x = marble.r; marble.vx *= -0.6; }
+  if (marble.x > canvas.width - marble.r) { marble.x = canvas.width - marble.r; marble.vx *= -0.6; }
+
+  if (marble.y < marble.r) { marble.y = marble.r; marble.vy *= -0.6; }
+  if (marble.y > canvas.height - marble.r) { marble.y = canvas.height - marble.r; marble.vy *= -0.6; }
+
+  draw();
+  requestAnimationFrame(update);
+}
+
+// ---- RENDER ----
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // tray
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(20, 20, canvas.width - 40, canvas.height - 40);
+
+  // marble (simple procedural shading)
+  const grad = ctx.createRadialGradient(
+    marble.x - 5, marble.y - 5, 2,
+    marble.x, marble.y, marble.r
+  );
+
+  grad.addColorStop(0, "#ffffff");
+  grad.addColorStop(1, "#999999");
+
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(marble.x, marble.y, marble.r, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+update();
+</script>
+
+</body>
+</html>
