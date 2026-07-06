@@ -114,6 +114,9 @@ const startButton = document.getElementById("startButton");
 /* ===== SENSOR STATE ===== */
 let rawHeading = 0;
 
+// What the needle is currently displaying
+let displayHeading = 0;
+
 /* ===== DEVICE ORIENTATION ===== */
 function handleOrientation(event) {
     // blah, blah
@@ -154,11 +157,28 @@ startButton.addEventListener("click", async () => {
     animate();
 });
 
+function updateHeading(){
+
+    // Difference between desired and displayed heading
+    let delta = rawHeading - displayHeading;
+
+    // Wrap into the range [-180, 180]
+    delta = ((delta + 540) % 360) - 180;
+
+    // Move 8% of the remaining distance each frame
+    displayHeading += delta * 0.08;
+
+    // Keep value in [0,360)
+    displayHeading = (displayHeading + 360) % 360;
+}
+
 /* ===== ANIMATION LOOP ===== */
 function animate(){
 
     /* TOP COMPASS = REAL HEADING */
-    northAngle = -rawHeading;
+    updateHeading();
+    
+    northAngle = -displayHeading;
 
     /* BOTTOM COMPASS = STILL DUMMY */
     targetAngle -= 0.8;
