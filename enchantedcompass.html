@@ -71,6 +71,22 @@ svg{
             stroke="black"
             stroke-width="2"/>
 
+    <text x="100" y="20"
+      text-anchor="middle"
+      dominant-baseline="middle">N</text>
+
+    <text x="180" y="100"
+      text-anchor="middle"
+      dominant-baseline="middle">E</text>
+
+    <text x="100" y="180"
+      text-anchor="middle"
+      dominant-baseline="middle">S</text>
+
+    <text x="20" y="100"
+      text-anchor="middle"
+      dominant-baseline="middle">W</text>
+
     <g id="needle1">
         <polygon points="100,34 106,100 100,94 94,100"
                  fill="black"/>
@@ -89,6 +105,22 @@ svg{
             fill="white"
             stroke="black"
             stroke-width="2"/>
+
+    <text x="100" y="20"
+      text-anchor="middle"
+      dominant-baseline="middle">N</text>
+
+    <text x="180" y="100"
+      text-anchor="middle"
+      dominant-baseline="middle">E</text>
+
+    <text x="100" y="180"
+      text-anchor="middle"
+      dominant-baseline="middle">S</text>
+
+    <text x="20" y="100"
+      text-anchor="middle"
+      dominant-baseline="middle">W</text>
 
     <g id="needle2">
         <polygon points="100,34 106,100 100,94 94,100"
@@ -112,37 +144,21 @@ const overlay = document.getElementById("overlay");
 const startButton = document.getElementById("startButton");
 
 /* ===== SENSOR STATE ===== */
-// null = no valid heading yet
-let rawHeading = null;
+let rawHeading = 0;
 
-/* ===== DEVICE ORIENTATION HANDLER (ROBUST VERSION) ===== */
+/* ===== DEVICE ORIENTATION ===== */
 function handleOrientation(event) {
 
-    // ----------------------------
-    // iOS (best + already magnetic north)
-    // ----------------------------
-    if (typeof event.webkitCompassHeading === "number") {
+    // iOS Safari (best case)
+    if (event.webkitCompassHeading !== undefined) {
         rawHeading = event.webkitCompassHeading;
         return;
     }
 
-    // ----------------------------
-    // Android / general fallback
-    // ----------------------------
-    if (typeof event.alpha === "number") {
-
-        // IMPORTANT:
-        // alpha is device rotation, not guaranteed absolute north
-        // but it is still the best available signal in most Android browsers
-
-        rawHeading = (360 - event.alpha) % 360;
-        return;
+    // Android fallback (alpha-based)
+    if (event.alpha !== null) {
+        rawHeading = 360 - event.alpha;
     }
-
-    // ----------------------------
-    // no usable data
-    // ----------------------------
-    // keep last good value (rawHeading)
 }
 
 /* ===== START ===== */
@@ -180,12 +196,10 @@ startButton.addEventListener("click", async () => {
 function animate(){
 
     /* TOP COMPASS = REAL HEADING */
-    // previous code referenced an undefined `hasValidHeading` variable which threw
-    // a ReferenceError and stopped the animation loop. Instead check rawHeading.
-    northAngle = rawHeading !== null ? -rawHeading : northAngle;
+    northAngle = -rawHeading;
 
     /* BOTTOM COMPASS = STILL DUMMY */
-    targetAngle -= 0.9;
+    targetAngle -= 0.8;
 
     needle1.setAttribute(
         "transform",
