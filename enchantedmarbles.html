@@ -36,7 +36,11 @@ function makeMarble(x, y) {
         y,
         vx: 0,
         vy: 0,
-        r: 40
+        r: 40,
+
+        // Tiny hidden differences between marbles
+        mass: 1 + (Math.random() - 0.5) * 0.04,
+        damping: damping + (Math.random() - 0.5) * 0.003
     };
 }
 
@@ -176,12 +180,16 @@ function resolveMarbleCollisions() {
             const bounce = 0.85;
 
             const impulse = impact * bounce;
-
-            a.vx += impulse * nx;
-            a.vy += impulse * ny;
-
-            b.vx -= impulse * nx;
-            b.vy -= impulse * ny;
+            
+            const invMassA = 1 / a.mass;
+            const invMassB = 1 / b.mass;
+            const totalInvMass = invMassA + invMassB;
+            
+            a.vx += impulse * nx * (invMassA / totalInvMass);
+            a.vy += impulse * ny * (invMassA / totalInvMass);
+            
+            b.vx -= impulse * nx * (invMassB / totalInvMass);
+            b.vy -= impulse * ny * (invMassB / totalInvMass);
         }
     }
 }
@@ -198,8 +206,12 @@ function update() {
         marble.vx += force.fx;
         marble.vy += force.fy;
 
-        marble.vx *= damping;
-        marble.vy *= damping;
+        // Tiny Brownian motion
+        marble.vx += (Math.random() - 0.5) * 0.015;
+        marble.vy += (Math.random() - 0.5) * 0.015;
+      
+        marble.vx *= marble.damping;
+        marble.vy *= marble.damping;
 
         marble.x += marble.vx;
         marble.y += marble.vy;
