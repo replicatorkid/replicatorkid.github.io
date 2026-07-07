@@ -28,31 +28,6 @@ canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
 // --------------------
-// MARBLE STATE
-// --------------------
-function makeMarble(x, y) {
-    return {
-        x,
-        y,
-        vx: 0,
-        vy: 0,
-        r: 40,
-
-        // Tiny hidden differences between marbles
-        mass: 1 + (Math.random() - 0.5) * 0.04,
-        damping: damping + (Math.random() - 0.5) * 0.003
-    };
-}
-
-const marbles = [
-    makeMarble(canvas.width * 0.35, canvas.height * 0.40),
-    makeMarble(canvas.width * 0.50, canvas.height * 0.40),
-    makeMarble(canvas.width * 0.65, canvas.height * 0.40),
-    makeMarble(canvas.width * 0.425, canvas.height * 0.58),
-    makeMarble(canvas.width * 0.575, canvas.height * 0.58)
-];
-
-// --------------------
 // SENSOR STATE
 // --------------------
 let rawTiltX = 0;
@@ -120,6 +95,31 @@ document.getElementById("start").onclick = async () => {
 
   document.getElementById("start").style.display = "none";
 };
+  
+// --------------------
+// MARBLE STATE
+// --------------------
+function makeMarble(x, y) {
+    return {
+        x,
+        y,
+        vx: 0,
+        vy: 0,
+        r: 40,
+
+        // Tiny hidden differences between marbles
+        mass: 1 + (Math.random() - 0.5) * 0.04,
+        damping: damping + (Math.random() - 0.5) * 0.003
+    };
+}
+
+const marbles = [
+    makeMarble(canvas.width * 0.35, canvas.height * 0.40),
+    makeMarble(canvas.width * 0.50, canvas.height * 0.40),
+    makeMarble(canvas.width * 0.65, canvas.height * 0.40),
+    makeMarble(canvas.width * 0.425, canvas.height * 0.58),
+    makeMarble(canvas.width * 0.575, canvas.height * 0.58)
+];
 
 // --------------------
 // Inter-marble collisions
