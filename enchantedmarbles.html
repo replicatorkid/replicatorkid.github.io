@@ -30,13 +30,23 @@ canvas.height = window.innerHeight;
 // --------------------
 // MARBLE STATE
 // --------------------
-const marble = {
-  x: canvas.width / 2,
-  y: canvas.height / 2,
-  vx: 0,
-  vy: 0,
-  r: 40
-};
+function makeMarble(x, y) {
+    return {
+        x,
+        y,
+        vx: 0,
+        vy: 0,
+        r: 40
+    };
+}
+
+const marbles = [
+    makeMarble(canvas.width * 0.35, canvas.height * 0.40),
+    makeMarble(canvas.width * 0.50, canvas.height * 0.40),
+    makeMarble(canvas.width * 0.65, canvas.height * 0.40),
+    makeMarble(canvas.width * 0.425, canvas.height * 0.58),
+    makeMarble(canvas.width * 0.575, canvas.height * 0.58)
+];
 
 // --------------------
 // SENSOR STATE
@@ -111,51 +121,76 @@ document.getElementById("start").onclick = async () => {
 // UPDATE LOOP
 // --------------------
 function update() {
-  const force = getSensorForce();
 
-  marble.vx += force.fx;
-  marble.vy += force.fy;
+    const force = getSensorForce();
 
-  marble.vx *= damping;
-  marble.vy *= damping;
+    for (const marble of marbles) {
 
-  marble.x += marble.vx;
-  marble.y += marble.vy;
+        marble.vx += force.fx;
+        marble.vy += force.fy;
 
-  // walls
-  if (marble.x < marble.r) { marble.x = marble.r; marble.vx *= -0.6; }
-  if (marble.x > canvas.width - marble.r) { marble.x = canvas.width - marble.r; marble.vx *= -0.6; }
+        marble.vx *= damping;
+        marble.vy *= damping;
 
-  if (marble.y < marble.r) { marble.y = marble.r; marble.vy *= -0.6; }
-  if (marble.y > canvas.height - marble.r) { marble.y = canvas.height - marble.r; marble.vy *= -0.6; }
+        marble.x += marble.vx;
+        marble.y += marble.vy;
 
-  draw();
-  requestAnimationFrame(update);
+        // walls
+        if (marble.x < marble.r) {
+            marble.x = marble.r;
+            marble.vx *= -0.6;
+        }
+
+        if (marble.x > canvas.width - marble.r) {
+            marble.x = canvas.width - marble.r;
+            marble.vx *= -0.6;
+        }
+
+        if (marble.y < marble.r) {
+            marble.y = marble.r;
+            marble.vy *= -0.6;
+        }
+
+        if (marble.y > canvas.height - marble.r) {
+            marble.y = canvas.height - marble.r;
+            marble.vy *= -0.6;
+        }
+    }
+
+    draw();
+    requestAnimationFrame(update);
 }
 
 // --------------------
 // RENDER
 // --------------------
 function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // tray
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(20, 20, canvas.width - 40, canvas.height - 40);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // marble shading
-  const grad = ctx.createRadialGradient(
-    marble.x - 5, marble.y - 5, 2,
-    marble.x, marble.y, marble.r
-  );
+    // tray
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(20, 20, canvas.width - 40, canvas.height - 40);
 
-  grad.addColorStop(0, "#ffffff");
-  grad.addColorStop(1, "#9a9a9a");
+    for (const marble of marbles) {
 
-  ctx.fillStyle = grad;
-  ctx.beginPath();
-  ctx.arc(marble.x, marble.y, marble.r, 0, Math.PI * 2);
-  ctx.fill();
+        const grad = ctx.createRadialGradient(
+            marble.x - 5,
+            marble.y - 5,
+            2,
+            marble.x,
+            marble.y,
+            marble.r
+        );
+
+        grad.addColorStop(0, "#ffffff");
+        grad.addColorStop(1, "#9a9a9a");
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(marble.x, marble.y, marble.r, 0, Math.PI * 2);
+        ctx.fill();
+    }
 }
 
 // start
