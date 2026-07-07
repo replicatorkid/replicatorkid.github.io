@@ -118,6 +118,75 @@ document.getElementById("start").onclick = async () => {
 };
 
 // --------------------
+// Inter-marble collisions
+// --------------------
+function resolveMarbleCollisions() {
+
+    for (let i = 0; i < marbles.length; i++) {
+
+        for (let j = i + 1; j < marbles.length; j++) {
+
+            const a = marbles[i];
+            const b = marbles[j];
+
+            let dx = b.x - a.x;
+            let dy = b.y - a.y;
+
+            let dist = Math.hypot(dx, dy);
+
+            let minDist = a.r + b.r;
+
+            if (dist >= minDist)
+                continue;
+
+            // Prevent divide-by-zero.
+            if (dist < 0.0001) {
+                dx = 1;
+                dy = 0;
+                dist = 1;
+            }
+
+            //------------------------------------------------------
+            // Push the marbles apart so they no longer overlap.
+            //------------------------------------------------------
+
+            const nx = dx / dist;
+            const ny = dy / dist;
+
+            const overlap = minDist - dist;
+
+            a.x -= nx * overlap * 0.5;
+            a.y -= ny * overlap * 0.5;
+
+            b.x += nx * overlap * 0.5;
+            b.y += ny * overlap * 0.5;
+
+            //------------------------------------------------------
+            // Exchange velocity along the collision normal.
+            //------------------------------------------------------
+
+            const dvx = b.vx - a.vx;
+            const dvy = b.vy - a.vy;
+
+            const impact = dvx * nx + dvy * ny;
+
+            if (impact > 0)
+                continue;
+
+            const bounce = 0.85;
+
+            const impulse = impact * bounce;
+
+            a.vx += impulse * nx;
+            a.vy += impulse * ny;
+
+            b.vx -= impulse * nx;
+            b.vy -= impulse * ny;
+        }
+    }
+}
+  
+// --------------------
 // UPDATE LOOP
 // --------------------
 function update() {
@@ -157,6 +226,8 @@ function update() {
         }
     }
 
+    resolveMarbleCollisions();
+  
     draw();
     requestAnimationFrame(update);
 }
