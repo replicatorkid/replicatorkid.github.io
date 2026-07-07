@@ -168,7 +168,7 @@ function updateHeading(){
     delta = ((delta + 540) % 360) - 180;
 
     // Move 8% of the remaining distance each frame
-    displayHeading += delta * 0.08;
+    displayHeading += delta * 0.04;
 
     // Keep value in [0,360)
     displayHeading = (displayHeading + 360) % 360;
