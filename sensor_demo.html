@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sensor Demo</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; padding: 1rem; max-width: 900px; margin: auto; }
+    h1 { margin-top: 0; }
+    .controls { margin: 1rem 0; }
+    button { font-size: 1rem; padding: 0.5rem 1rem; margin-right: 0.5rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem; }
+    .card { border: 1px solid #ddd; padding: 0.75rem; border-radius: 6px; background: #fafafa; }
+    .key { color:#666; font-size:0.9rem; }
+    .val { font-family: monospace; font-size:0.95rem; margin-top:0.25rem; display:block; white-space:pre-wrap; word-break:break-word; }
+    .status { margin-top:0.5rem; font-size:0.9rem; color:#444; }
+    footer { margin-top:1.5rem; font-size:0.85rem; color:#666; }
+  </style>
+</head>
+<body>
+  <h1>Sensors Demo</h1>
+  <p>A small demo that uses <code>sensor.js</code>. Click Start from a user gesture to request permissions (required on some platforms).</p>
+
+  <div class="controls">
+    <button id="startBtn">Start Sensors</button>
+    <button id="stopBtn" disabled>Stop Sensors</button>
+    <span id="msg" class="status"></span>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="key">GPS</div>
+      <div id="gps" class="val">lat: —\nlon: —\nalt: —\naccuracy: —\nspeed: —\nheading: —\ntimestamp: —</div>
+    </div>
+
+    <div class="card">
+      <div class="key">Orientation (deg)</div>
+      <div id="orient" class="val">heading: —\npitch: —\nroll: —</div>
+    </div>
+
+    <div class="card">
+      <div class="key">Acceleration (m/s²)</div>
+      <div id="accel" class="val">x: —\ny: —\nz: —</div>
+    </div>
+
+    <div class="card">
+      <div class="key">Rotation (deg/s)</div>
+      <div id="gyro" class="val">x: —\ny: —\nz: —</div>
+    </div>
+
+    <div class="card">
+      <div class="key">Status</div>
+      <div id="status" class="val">gps: —\naccelerometer: —\ngyroscope: —\ncompass: —\norientation: —</div>
+    </div>
+  </div>
+
+  <footer>
+    Notes: Geolocation & many sensors require HTTPS or localhost. On iOS, DeviceMotion/Orientation permissions must be granted via a user gesture; use the Start button.
+  </footer>
+
+  <!-- Include the sensor implementation; adjust path if you placed sensor.js elsewhere -->
+  <script src="/sensor.js"></script>
+
+  <script>
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const msg = document.getElementById('msg');
+
+    function render() {
+      const g = window.Sensors && window.Sensors.gps ? window.Sensors.gps : {};
+      const o = window.Sensors && window.Sensors.orientation ? window.Sensors.orientation : {};
+      const a = window.Sensors && window.Sensors.acceleration ? window.Sensors.acceleration : {};
+      const r = window.Sensors && window.Sensors.rotation ? window.Sensors.rotation : {};
+      const s = window.Sensors && window.Sensors.status ? window.Sensors.status : {};
+
+      document.getElementById('gps').textContent =
+        `lat: ${g.lat ?? '—'}\nlon: ${g.lon ?? '—'}\nalt: ${g.alt ?? '—'}\naccuracy: ${g.accuracy ?? '—'}\nspeed: ${g.speed ?? '—'}\nheading: ${g.heading ?? '—'}\ntimestamp: ${g.timestamp ?? '—'}`;
+
+      document.getElementById('orient').textContent =
+        `heading: ${o.heading ?? '—'}\npitch: ${o.pitch ?? '—'}\nroll: ${o.roll ?? '—'}`;
+
+      document.getElementById('accel').textContent =
+        `x: ${a.x ?? '—'}\ny: ${a.y ?? '—'}\nz: ${a.z ?? '—'}`;
+
+      document.getElementById('gyro').textContent =
+        `x: ${r.x ?? '—'}\ny: ${r.y ?? '—'}\nz: ${r.z ?? '—'}`;
+
+      document.getElementById('status').textContent =
+        `gps: ${s.gps ?? false}\naccelerometer: ${s.accelerometer ?? false}\ngyroscope: ${s.gyroscope ?? false}\ncompass: ${s.compass ?? false}\norientation: ${s.orientation ?? false}`;
+    }
+
+    let uiTimer = null;
+
+    startBtn.addEventListener('click', async () => {
+      try {
+        startBtn.disabled = true;
+        msg.textContent = 'Requesting permissions / starting sensors...';
+        // Start sensors (many browsers require a user gesture)
+        await window.Sensors.start();
+        msg.textContent = 'Running';
+        stopBtn.disabled = false;
+        // Update UI regularly
+        render();
+        uiTimer = setInterval(render, 250);
+      } catch (e) {
+        console.error('Failed to start sensors', e);
+        msg.textContent = 'Failed to start sensors: ' + (e && e.message ? e.message : e);
+        startBtn.disabled = false;
+      }
+    });
+
+    stopBtn.addEventListener('click', () => {
+      window.Sensors.stop();
+      msg.textContent = 'Stopped';
+      stopBtn.disabled = true;
+      startBtn.disabled = false;
+      if (uiTimer) {
+        clearInterval(uiTimer);
+        uiTimer = null;
+      }
+      render();
+    });
+
+    // Attempt to show current values if sensors are already running
+    render();
+  </script>
+</body>
+</html>
