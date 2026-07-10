@@ -20,6 +20,8 @@
 <button id="start">Enable Motion</button>
 <canvas id="c"></canvas>
 
+<script src="sensor.js"></script>
+
 <script>
 const canvas = document.getElementById("c");
 const ctx = canvas.getContext("2d");
@@ -28,53 +30,41 @@ canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
 // --------------------
-// SENSOR STATE
-// --------------------
-let rawTiltX = 0;
-let rawTiltY = 0;
-
-let rawMotionX = 0;
-let rawMotionY = 0;
-
-// --------------------
 // SETTINGS
 // --------------------
 const damping = 0.985;
+const tiltScale = 0.08;
+const northScale = tiltScale / 3; // 1/3 of tilt scale
 
 // --------------------
-// INPUT: ORIENTATION
-// --------------------
-function handleOrientation(event) {
-  rawTiltX = event.gamma || 0;      // left/right
-  rawTiltY = event.beta || 0;     // up/down
-}
-
-// --------------------
-// INPUT: MOTION...
-// --------------------
-function handleMotion(event) {
-  const a = event.acceleration;
-  if (!a) return;
-
-  rawMotionX = a.x || 0;
-  rawMotionY = a.y || 0;
-}
-
-// --------------------
-// SENSOR FUSION (IMPORTANT)
+// SENSOR FUSION
 // --------------------
 function getSensorForce() {
-  const tiltScale = 0.08;
-  //const motionScale = 0.6;
-  const motionScale = -1.1;
+  let fx = 0;
+  let fy = 0;
 
-  let fx = rawTiltX * tiltScale;
-  let fy = rawTiltY * tiltScale;
+  // Tilt force (from Sensors.orientation.pitch and roll)
+  if (Sensors.orientation.pitch != null) {
+    fx += Sensors.orientation.roll * tiltScale;
+    fy += Sensors.orientation.pitch * tiltScale;
+  }
 
-  fx -= rawMotionX * motionScale;
-  fy += rawMotionY * motionScale;
+  // North-seeking force
+  if (Sensors.orientation.heading != null) {
+    // heading: 0° = north, 90° = east, 180° = south, 270° = west
+    // Convert to radians
+    const heading = Sensors.orientation.heading * (Math.PI / 180);
+    
+    // North is up on screen (-Y), so:
+    // north force = (sin(heading), -cos(heading))
+    const northFx = Math.sin(heading) * northScale;
+    const northFy = -Math.cos(heading) * northScale;
+    
+    fx += northFx;
+    fy += northFy;
+  }
 
-  // soft stabilization
+  // Soft stabilization
   fx *= 0.92;
   fy *= 0.92;
 
@@ -85,14 +75,7 @@ function getSensorForce() {
 // PERMISSION + START
 // --------------------
 document.getElementById("start").onclick = async () => {
-  if (typeof DeviceOrientationEvent.requestPermission === "function") {
-    const res = await DeviceOrientationEvent.requestPermission();
-    if (res !== "granted") return;
-  }
-
-  window.addEventListener("deviceorientation", handleOrientation);
-  window.addEventListener("devicemotion", handleMotion);
-
+  await Sensors.start();
   document.getElementById("start").style.display = "none";
 };
   
