@@ -102,6 +102,7 @@ svg{
 
 </div>
 
+<script src="sensor.js"></script>
 <script>
 
 let northAngle = 0;
@@ -114,45 +115,14 @@ const overlay = document.getElementById("overlay");
 const startButton = document.getElementById("startButton");
 
 /* ===== SENSOR STATE ===== */
-let rawHeading = 0;
-
-// What the needle is currently displaying
 let displayHeading = 0;
-
-/* ===== DEVICE ORIENTATION ===== */
-function handleOrientation(event) {
-    // blah, blah
-    // iOS Safari
-    if (event.webkitCompassHeading !== undefined) {
-        rawHeading = event.webkitCompassHeading;
-        return;
-    }
-
-    // Android fallback - check for valid number, not just null
-    if (event.alpha !== null && event.alpha !== undefined) {
-        rawHeading = 360 - event.alpha;
-    }
-}
 
 /* ===== START ===== */
 startButton.addEventListener("click", async () => {
     try {
-        if (navigator.geolocation) {
-            navigator.geolocation.watchPosition(() => {}, () => {}, {
-                enableHighAccuracy: true
-            });
-        }
-
-        // iOS 13+ permission request
-        if (typeof DeviceOrientationEvent !== "undefined" &&
-            typeof DeviceOrientationEvent.requestPermission === "function") {
-            await DeviceOrientationEvent.requestPermission();
-        }
-        // Android doesn't need requestPermission, but listener still works
-        
-        window.addEventListener("deviceorientation", handleOrientation);
+        await Sensors.start();
     } catch (e) {
-        console.error("Orientation setup failed:", e);
+        console.error("Sensors setup failed:", e);
     }
 
     overlay.style.display = "none";
@@ -160,6 +130,8 @@ startButton.addEventListener("click", async () => {
 });
 
 function updateHeading(){
+    // Get the current heading from Sensors
+    const rawHeading = Sensors.orientation.heading ?? 0;
 
     // Difference between desired and displayed heading
     let delta = rawHeading - displayHeading;
