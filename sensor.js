@@ -324,9 +324,18 @@ const Sensors = {
 
     // Orientation
     if (this.raw.orientation && this.raw.orientation.heading != null) {
-      // Normalize heading to 0..360
-      const h = ((this.raw.orientation.heading % 360) + 360) % 360;
-      this.orientation.heading = this._smooth(this.orientation.heading, h, 0.7);
+      const h = this.raw.orientation.heading;
+      
+      // Circular smoothing for heading to avoid wraparound jitter
+      if (this.orientation.heading !== null) {
+        let delta = h - this.orientation.heading;
+        delta = ((delta + 540) % 360) - 180; // wrap to [-180, 180]
+        this.orientation.heading = this.orientation.heading + delta * 0.7;
+        this.orientation.heading = ((this.orientation.heading % 360) + 360) % 360;
+      } else {
+        this.orientation.heading = h;
+      }
+      
       this.orientation.pitch = this._smooth(this.orientation.pitch, this.raw.orientation.pitch || 0, 0.6);
       this.orientation.roll = this._smooth(this.orientation.roll, this.raw.orientation.roll || 0, 0.6);
     }
