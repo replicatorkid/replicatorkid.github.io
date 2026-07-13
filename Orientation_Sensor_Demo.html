@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>AbsoluteOrientationSensor Demo</title>
+<style>
+  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; margin: 12px; color:#111; }
+  h1 { font-size: 1.1rem; margin: 0 0 8px 0; }
+  .controls { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+  button { padding:8px 10px; font-size:0.95rem; }
+  .grid { display:grid; grid-template-columns: 1fr 1fr; gap:8px; }
+  .card { padding:10px; border:1px solid #ddd; border-radius:6px; background:#fafafa; font-size:0.95rem; }
+  .mono { font-family: ui-monospace, "SFMono-Regular", Menlo, Monaco, "Roboto Mono", monospace; font-size:0.9rem; }
+  textarea { width:100%; height:160px; margin-top:8px; font-family: ui-monospace, monospace; padding:8px; box-sizing:border-box; }
+  .note { font-size:0.85rem; color:#555; margin-top:6px; }
+  @media (max-width:520px) { .grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+  <h1>AbsoluteOrientationSensor — quaternion → Euler → heading</h1>
+
+  <div class="controls">
+    <button id="startBtn">Start Sensor</button>
+    <button id="stopBtn" disabled>Stop Sensor</button>
+    <button id="snapBtn" disabled>Append snapshot</button>
+    <button id="copyBtn">Copy all snapshots</button>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <strong>Raw quaternion (x, y, z, w)</strong>
+      <pre id="quat" class="mono">—</pre>
+      <div id="qmeta" class="note"></div>
+    </div>
+
+    <div class="card">
+      <strong>Euler (degrees) — using same math as sensor.js</strong>
+      <div>Roll: <span id="roll">—</span>°</div>
+      <div>Pitch: <span id="pitch">—</span>°</div>
+      <div>Yaw: <span id="yaw">—</span>°</div>
+      <div class="note">Yaw → compass heading (normalized to 0..360): <strong><span id="heading">—</span>°</strong></div>
+    </div>
+  </div>
+
+  <div style="margin-top:10px;" class="card">
+    <strong>Snapshots (append entries with "Append snapshot")</strong>
+    <textarea id="log" placeholder="Snapshots will appear here..."></textarea>
+    <div class="note">Tip: press "Append snapshot" while facing each cardinal direction and then copy the textarea contents to your laptop.</div>
+  </div>
+
+  <script>
+    (function () {
+      const startBtn = document.getElementById('startBtn');
+      const stopBtn = document.getElementById('stopBtn');
+      const snapBtn = document.getElementById('snapBtn');
+      const copyBtn = document.getElementById('copyBtn');
+
+      const quatEl = document.getElementById('quat');
+      const qmeta = document.getElementById('qmeta');
+      const rollEl = document.getElementById('roll');
+      const pitchEl = document.getElementById('pitch');
+      const yawEl = document.getElementById('yaw');
+      const headingEl = document.getElementById('heading');
+      const logEl = document.getElementById('log');
+
+      let sensor = null;
+      let lastReading = null; // { q: [x,y,z,w], roll,pitch,yaw,heading,ts }
+
+      function fmt(v, n=3) {
+        return (typeof v === 'number' && isFinite(v)) ? v.toFixed(n) : '—';
+      }
+
+      function computeFromQuat(qarr) {
+        // Keep the exact same conversion math as sensor.js:
+        const x = qarr[0], y = qarr[1], z = qarr[2], w = qarr[3];
+        const ysqr = y * y;
+
+        // roll (x-axis rotation)
+        let t0 = +2.0 * (w * x + y * z);
+        let t1 = +1.0 - 2.0 * (x * x + ysqr);
+        let roll = Math.atan2(t0, t1);
+
+        // pitch (y-axis rotation)
+        let t2 = +2.0 * (w * y - z * x);
+        t2 = t2 > 1.0 ? 1.0 : t2;
+        t2 = t2 < -1.0 ? -1.0 : t2;
+        let pitch = Math.asin(t2);
+
+        // yaw (z-axis rotation)
+        let t3 = +2.0 * (w * z + x * y);
+        let t4 = +1.0 - 2.0 * (ysqr + z * z);
+        let yaw = Math.atan2(t3, t4);
+
+        const RAD2DEG = 180 / Math.PI;
+        const rollDeg = roll * RAD2DEG;
+        const pitchDeg = pitch * RAD2DEG;
+        const yawDeg = yaw * RAD2DEG;
+        const heading = ((yawDeg + 360) % 360);
+
+        return { rollDeg, pitchDeg, yawDeg, heading };
+      }
+
+      function showNotSupported() {
+        quatEl.textContent = 'AbsoluteOrientationSensor not available in this browser.';
+        qmeta.textContent = 'Try Chrome on Android with Experimental Web Platform enabled or use a newer build that supports Generic Sensor API.';
+        startBtn.disabled = true;
+        stopBtn.disabled = true;
+        snapBtn.disabled = true;
+      }
+
+      function updateDisplay(r) {
+        if (!r) {
+          quatEl.textContent = '—';
+          rollEl.textContent = '—';
+          pitchEl.textContent = '—';
+          yawEl.textContent = '—';
+          headingEl.textContent = '—';
+          qmeta.textContent = '';
+          return;
+        }
+        const q = r.q;
+        quatEl.textContent = '[' + q.map(v => fmt(v,6)).join(', ') + ']';
+        qmeta.textContent = 'timestamp: ' + new Date(r.ts).toISOString();
+        rollEl.textContent = fmt(r.roll,2);
+        pitchEl.textContent = fmt(r.pitch,2);
+        yawEl.textContent = fmt(r.yaw,2);
+        headingEl.textContent = fmt(r.heading,2);
+      }
+
+      startBtn.addEventListener('click', async () => {
+        if (!('AbsoluteOrientationSensor' in window)) {
+          showNotSupported();
+          return;
+        }
+        try {
+          startBtn.disabled = true;
+          sensor = new AbsoluteOrientationSensor({ frequency: 30 });
+          sensor.addEventListener('reading', () => {
+            const q = sensor.quaternion;
+            if (!q || q.length < 4) return;
+            const arr = [ q[0], q[1], q[2], q[3] ]; // keep exact order [x,y,z,w]
+            const e = computeFromQuat(arr);
+            const ts = Date.now();
+            lastReading = {
+              q: arr,
+              roll: e.rollDeg,
+              pitch: e.pitchDeg,
+              yaw: e.yawDeg,
+              heading: e.heading,
+              ts
+            };
+            updateDisplay(lastReading);
+            snapBtn.disabled = false;
+            stopBtn.disabled = false;
+          });
+          sensor.addEventListener('error', (ev) => {
+            console.warn('AbsoluteOrientationSensor error', ev.error);
+            alert('AbsoluteOrientationSensor error: ' + (ev.error && ev.error.name));
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            snapBtn.disabled = true;
+          });
+          sensor.start();
+        } catch (err) {
+          console.error('Failed to start AbsoluteOrientationSensor:', err);
+          alert('Failed to start AbsoluteOrientationSensor: ' + (err && err.message));
+          startBtn.disabled = false;
+        }
+      });
+
+      stopBtn.addEventListener('click', () => {
+        if (sensor) {
+          try { sensor.stop(); } catch(e) { /* ignore */ }
+          sensor = null;
+        }
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+        snapBtn.disabled = true;
+      });
+
+      snapBtn.addEventListener('click', () => {
+        if (!lastReading) return;
+        const q = lastReading.q;
+        const line = [
+          new Date(lastReading.ts).toISOString(),
+          'quat=[' + q.map(v => Number(v).toFixed(6)).join(',') + ']',
+          'roll=' + Number(lastReading.roll).toFixed(2),
+          'pitch=' + Number(lastReading.pitch).toFixed(2),
+          'yaw=' + Number(lastReading.yaw).toFixed(2),
+          'heading=' + Number(lastReading.heading).toFixed(2)
+        ].join('    ');
+        logEl.value += line + '\\n';
+        // keep focus on textarea so it's easy to copy later
+        logEl.scrollTop = logEl.scrollHeight;
+      });
+
+      copyBtn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(logEl.value);
+          copyBtn.textContent = 'Copied!';
+          setTimeout(() => copyBtn.textContent = 'Copy all snapshots', 1500);
+        } catch (e) {
+          // fallback: select and prompt
+          logEl.select();
+          try {
+            document.execCommand('copy');
+            copyBtn.textContent = 'Copied!';
+            setTimeout(() => copyBtn.textContent = 'Copy all snapshots', 1500);
+          } catch (e2) {
+            alert('Unable to copy automatically — select and copy the text manually.');
+          }
+        }
+      });
+
+      // initial feature detection
+      if (!('AbsoluteOrientationSensor' in window)) {
+        showNotSupported();
+      }
+    })();
+  </script>
+</body>
+</html>
