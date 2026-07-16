@@ -5,129 +5,368 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>AbsoluteOrientationSensor Demo</title>
 <style>
-  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; margin: 12px; color:#111; }
-  h1 { font-size: 1.1rem; margin: 0 0 8px 0; }
-  .controls { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
-  button { padding:8px 10px; font-size:0.95rem; }
-  .grid { display:grid; grid-template-columns: 1fr 1fr; gap:8px; }
-  .card { padding:10px; border:1px solid #ddd; border-radius:6px; background:#fafafa; font-size:0.95rem; }
-  .mono { font-family: ui-monospace, "SFMono-Regular", Menlo, Monaco, "Roboto Mono", monospace; font-size:0.9rem; }
-  textarea { width:100%; height:160px; margin-top:8px; font-family: ui-monospace, monospace; padding:8px; box-sizing:border-box; }
-  .note { font-size:0.85rem; color:#555; margin-top:6px; }
-  @media (max-width:520px) { .grid { grid-template-columns: 1fr; } }
+  body { 
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; 
+    margin: 16px; 
+    color: #111; 
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  h1 { font-size: 1.2rem; margin: 0 0 12px 0; font-weight: 600; }
+  h2 { font-size: 1rem; margin: 16px 0 8px 0; font-weight: 600; }
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  button { 
+    padding: 8px 12px; 
+    font-size: 0.95rem; 
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: #fff;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  button:hover:not(:disabled) { background: #f0f0f0; border-color: #999; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  button.active { background: #007acc; color: white; border-color: #007acc; }
+  
+  .section { margin-bottom: 20px; }
+  .card { 
+    padding: 12px; 
+    border: 1px solid #ddd; 
+    border-radius: 6px; 
+    background: #fafafa; 
+    font-size: 0.95rem; 
+  }
+  .mono { 
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Monaco, "Roboto Mono", monospace; 
+    font-size: 0.9rem; 
+  }
+  
+  .status { color: #666; font-size: 0.9rem; margin-top: 6px; }
+  .status.error { color: #d32f2f; }
+  .status.success { color: #388e3c; }
+  
+  .quat-display {
+    background: white;
+    padding: 12px;
+    border-radius: 4px;
+    font-family: ui-monospace, monospace;
+    font-size: 1rem;
+    word-break: break-all;
+    line-height: 1.6;
+  }
+  
+  .matrix-display {
+    display: inline-block;
+    background: white;
+    padding: 16px;
+    border-radius: 4px;
+    font-family: ui-monospace, monospace;
+    font-size: 0.9rem;
+    line-height: 1.8;
+  }
+  
+  .matrix-row { 
+    display: flex; 
+    gap: 12px; 
+    justify-content: space-around;
+    margin-bottom: 4px;
+  }
+  
+  .matrix-cell { 
+    width: 80px; 
+    text-align: right; 
+  }
+  
+  .button-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+  
+  .angle-display {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  
+  .angle-card {
+    background: white;
+    padding: 12px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+    text-align: center;
+  }
+  
+  .angle-label { font-size: 0.85rem; color: #666; margin-bottom: 4px; }
+  .angle-value { font-size: 1.4rem; font-weight: bold; color: #007acc; font-family: ui-monospace, monospace; }
+  
+  .heading-display {
+    background: white;
+    padding: 12px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+    text-align: center;
+    margin-top: 12px;
+  }
+  
+  .heading-label { font-size: 0.9rem; color: #666; margin-bottom: 6px; }
+  .heading-value { font-size: 1.8rem; font-weight: bold; color: #d32f2f; font-family: ui-monospace, monospace; }
+  
+  @media (max-width: 520px) { 
+    .angle-display { grid-template-columns: 1fr; }
+    .button-row { gap: 4px; }
+    button { padding: 6px 10px; font-size: 0.9rem; }
+  }
 </style>
 </head>
 <body>
-  <h1>AbsoluteOrientationSensor — quaternion → Euler → heading</h1>
+  <h1>AbsoluteOrientationSensor → Rotation Matrix → Tait-Bryan Angles</h1>
 
   <div class="controls">
     <button id="startBtn">Start Sensor</button>
     <button id="stopBtn" disabled>Stop Sensor</button>
-    <button id="snapBtn" disabled>Append snapshot</button>
-    <button id="copyBtn">Copy all snapshots</button>
   </div>
 
-  <div class="grid">
+  <div class="section">
     <div class="card">
-      <strong>Raw quaternion (x, y, z, w)</strong>
-      <pre id="quat" class="mono">—</pre>
-      <div id="qmeta" class="note"></div>
-    </div>
-
-    <div class="card">
-      <strong>Euler (degrees) — using same math as sensor.js</strong>
-      <div>Roll: <span id="roll">—</span>°</div>
-      <div>Pitch: <span id="pitch">—</span>°</div>
-      <div>Yaw: <span id="yaw">—</span>°</div>
-      <div class="note">Yaw → compass heading (normalized to 0..360): <strong><span id="heading">—</span>°</strong></div>
+      <h2>Raw Quaternion (x, y, z, w)</h2>
+      <div class="quat-display" id="quatDisplay">—</div>
+      <div class="status" id="quatStatus"></div>
     </div>
   </div>
 
-  <div style="margin-top:10px;" class="card">
-    <strong>Snapshots (append entries with "Append snapshot")</strong>
-    <textarea id="log" placeholder="Snapshots will appear here..."></textarea>
-    <div class="note">Tip: press "Append snapshot" while facing each cardinal direction and then copy the textarea contents to your laptop.</div>
+  <div class="section">
+    <div class="card">
+      <h2>Rotation Matrix (3×3)</h2>
+      <div class="matrix-display" id="matrixDisplay">—</div>
+      <div class="status" id="matrixStatus"></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="card">
+      <h2>Tait-Bryan Angle Ordering</h2>
+      <p style="font-size: 0.9rem; color: #666; margin-bottom: 12px;">Select rotation order (e.g., XYZ = roll-pitch-yaw):</p>
+      <div class="button-row" id="orderButtons"></div>
+      <div class="angle-display" id="angleDisplay"></div>
+      <div class="status" id="angleStatus"></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="card">
+      <h2>Compass Heading</h2>
+      <p style="font-size: 0.9rem; color: #666; margin-bottom: 12px;">Choose which angle to normalize to 0°–360° compass heading:</p>
+      <div class="button-row" id="headingButtons"></div>
+      <div class="heading-display" id="headingDisplay">
+        <div class="heading-label">Heading</div>
+        <div class="heading-value">—</div>
+      </div>
+    </div>
   </div>
 
   <script>
     (function () {
       const startBtn = document.getElementById('startBtn');
       const stopBtn = document.getElementById('stopBtn');
-      const snapBtn = document.getElementById('snapBtn');
-      const copyBtn = document.getElementById('copyBtn');
-
-      const quatEl = document.getElementById('quat');
-      const qmeta = document.getElementById('qmeta');
-      const rollEl = document.getElementById('roll');
-      const pitchEl = document.getElementById('pitch');
-      const yawEl = document.getElementById('yaw');
-      const headingEl = document.getElementById('heading');
-      const logEl = document.getElementById('log');
-
+      
+      const quatDisplay = document.getElementById('quatDisplay');
+      const quatStatus = document.getElementById('quatStatus');
+      
+      const matrixDisplay = document.getElementById('matrixDisplay');
+      const matrixStatus = document.getElementById('matrixStatus');
+      
+      const orderButtons = document.getElementById('orderButtons');
+      const angleDisplay = document.getElementById('angleDisplay');
+      const angleStatus = document.getElementById('angleStatus');
+      
+      const headingButtons = document.getElementById('headingButtons');
+      const headingDisplay = document.getElementById('headingDisplay');
+      
       let sensor = null;
-      let lastReading = null; // { q: [x,y,z,w], roll,pitch,yaw,heading,ts }
-
-      function fmt(v, n=3) {
-        return (typeof v === 'number' && isFinite(v)) ? v.toFixed(n) : '—';
+      let lastQuatData = null;
+      let lastRotationMatrix = null;
+      let selectedOrder = 'XYZ';
+      let selectedHeadingAngle = 0; // 0=first, 1=second, 2=third
+      
+      const TAI_BRYAN_ORDERS = ['XYZ', 'XZY', 'YXZ', 'YZX', 'ZXY', 'ZYX'];
+      const ANGLE_NAMES = {
+        'XYZ': ['Roll (X)', 'Pitch (Y)', 'Yaw (Z)'],
+        'XZY': ['Roll (X)', 'Yaw (Z)', 'Pitch (Y)'],
+        'YXZ': ['Pitch (Y)', 'Roll (X)', 'Yaw (Z)'],
+        'YZX': ['Pitch (Y)', 'Yaw (Z)', 'Roll (X)'],
+        'ZXY': ['Yaw (Z)', 'Roll (X)', 'Pitch (Y)'],
+        'ZYX': ['Yaw (Z)', 'Pitch (Y)', 'Roll (X)']
+      };
+      
+      function fmt(v, decimals = 4) {
+        return typeof v === 'number' && isFinite(v) ? v.toFixed(decimals) : '—';
       }
-
-      function computeFromQuat(qarr) {
-        // Keep the exact same conversion math as sensor.js:
-        const x = qarr[0], y = qarr[1], z = qarr[2], w = qarr[3];
-        const ysqr = y * y;
-
-        // roll (x-axis rotation)
-        let t0 = +2.0 * (w * x + y * z);
-        let t1 = +1.0 - 2.0 * (x * x + ysqr);
-        let roll = Math.atan2(t0, t1);
-
-        // pitch (y-axis rotation)
-        let t2 = +2.0 * (w * y - z * x);
-        t2 = t2 > 1.0 ? 1.0 : t2;
-        t2 = t2 < -1.0 ? -1.0 : t2;
-        let pitch = Math.asin(t2);
-
-        // yaw (z-axis rotation)
-        let t3 = +2.0 * (w * z + x * y);
-        let t4 = +1.0 - 2.0 * (ysqr + z * z);
-        let yaw = Math.atan2(t3, t4);
-
-        const RAD2DEG = 180 / Math.PI;
-        const rollDeg = roll * RAD2DEG;
-        const pitchDeg = pitch * RAD2DEG;
-        const yawDeg = yaw * RAD2DEG;
-        const heading = ((yawDeg + 360) % 360);
-
-        return { rollDeg, pitchDeg, yawDeg, heading };
+      
+      function quaternionToRotationMatrix(q) {
+        // W3C Generic Sensor spec: quaternion is [x, y, z, w]
+        const x = q[0], y = q[1], z = q[2], w = q[3];
+        
+        // Rotation matrix from quaternion
+        // Using standard formula: https://en.wikipedia.org/wiki/Quaternion#From_a_quaternion_to_an_orthogonal_matrix
+        const matrix = [
+          [1 - 2*y*y - 2*z*z,     2*x*y - 2*w*z,     2*x*z + 2*w*y],
+          [    2*x*y + 2*w*z, 1 - 2*x*x - 2*z*z,     2*y*z - 2*w*x],
+          [    2*x*z - 2*w*y,     2*y*z + 2*w*x, 1 - 2*x*x - 2*y*y]
+        ];
+        return matrix;
       }
-
-      function showNotSupported() {
-        quatEl.textContent = 'AbsoluteOrientationSensor not available in this browser.';
-        qmeta.textContent = 'Try Chrome on Android with Experimental Web Platform enabled or use a newer build that supports Generic Sensor API.';
-        startBtn.disabled = true;
-        stopBtn.disabled = true;
-        snapBtn.disabled = true;
+      
+      function rotationMatrixToTaitBryan(matrix, order) {
+        // Extract Tait-Bryan angles from rotation matrix
+        // Different orders have different extraction formulas
+        // Using standard formulas from rotation matrices
+        
+        const m = matrix;
+        const rad2deg = 180 / Math.PI;
+        let angle1, angle2, angle3;
+        
+        switch(order) {
+          case 'XYZ': // roll-pitch-yaw (intrinsic Z-Y-X or extrinsic X-Y-Z)
+            angle2 = Math.asin(Math.max(-1, Math.min(1, m[0][2])));
+            angle1 = Math.atan2(-m[1][2], m[2][2]);
+            angle3 = Math.atan2(-m[0][1], m[0][0]);
+            break;
+          case 'XZY':
+            angle3 = Math.asin(Math.max(-1, Math.min(1, -m[0][1])));
+            angle1 = Math.atan2(m[2][1], m[1][1]);
+            angle2 = Math.atan2(m[0][2], m[0][0]);
+            break;
+          case 'YXZ':
+            angle1 = Math.asin(Math.max(-1, Math.min(1, -m[1][2])));
+            angle2 = Math.atan2(m[0][2], m[2][2]);
+            angle3 = Math.atan2(m[1][0], m[1][1]);
+            break;
+          case 'YZX':
+            angle3 = Math.asin(Math.max(-1, Math.min(1, m[1][0])));
+            angle2 = Math.atan2(-m[1][2], m[1][1]);
+            angle1 = Math.atan2(-m[2][0], m[0][0]);
+            break;
+          case 'ZXY':
+            angle1 = Math.asin(Math.max(-1, Math.min(1, m[2][1])));
+            angle3 = Math.atan2(-m[2][0], m[2][2]);
+            angle2 = Math.atan2(-m[0][1], m[1][1]);
+            break;
+          case 'ZYX':
+            angle2 = Math.asin(Math.max(-1, Math.min(1, -m[2][0])));
+            angle1 = Math.atan2(m[2][1], m[2][2]);
+            angle3 = Math.atan2(m[1][0], m[0][0]);
+            break;
+        }
+        
+        return [angle1 * rad2deg, angle2 * rad2deg, angle3 * rad2deg];
       }
-
-      function updateDisplay(r) {
-        if (!r) {
-          quatEl.textContent = '—';
-          rollEl.textContent = '—';
-          pitchEl.textContent = '—';
-          yawEl.textContent = '—';
-          headingEl.textContent = '—';
-          qmeta.textContent = '';
+      
+      function updateQuatDisplay() {
+        if (!lastQuatData) {
+          quatDisplay.textContent = '—';
+          quatStatus.textContent = '';
           return;
         }
-        const q = r.q;
-        quatEl.textContent = '[' + q.map(v => fmt(v,6)).join(', ') + ']';
-        qmeta.textContent = 'timestamp: ' + new Date(r.ts).toISOString();
-        rollEl.textContent = fmt(r.roll,2);
-        pitchEl.textContent = fmt(r.pitch,2);
-        yawEl.textContent = fmt(r.yaw,2);
-        headingEl.textContent = fmt(r.heading,2);
+        const q = lastQuatData;
+        quatDisplay.textContent = `[${fmt(q[0], 6)}, ${fmt(q[1], 6)}, ${fmt(q[2], 6)}, ${fmt(q[3], 6)}]`;
+        quatStatus.classList.add('success');
+        quatStatus.textContent = `✓ x=${fmt(q[0], 6)}, y=${fmt(q[1], 6)}, z=${fmt(q[2], 6)}, w=${fmt(q[3], 6)}`;
       }
-
+      
+      function updateMatrixDisplay() {
+        if (!lastRotationMatrix) {
+          matrixDisplay.textContent = '—';
+          matrixStatus.textContent = '';
+          return;
+        }
+        const m = lastRotationMatrix;
+        matrixDisplay.innerHTML = `
+          <div class="matrix-row">
+            <div class="matrix-cell">${fmt(m[0][0], 4)}</div>
+            <div class="matrix-cell">${fmt(m[0][1], 4)}</div>
+            <div class="matrix-cell">${fmt(m[0][2], 4)}</div>
+          </div>
+          <div class="matrix-row">
+            <div class="matrix-cell">${fmt(m[1][0], 4)}</div>
+            <div class="matrix-cell">${fmt(m[1][1], 4)}</div>
+            <div class="matrix-cell">${fmt(m[1][2], 4)}</div>
+          </div>
+          <div class="matrix-row">
+            <div class="matrix-cell">${fmt(m[2][0], 4)}</div>
+            <div class="matrix-cell">${fmt(m[2][1], 4)}</div>
+            <div class="matrix-cell">${fmt(m[2][2], 4)}</div>
+          </div>
+        `;
+      }
+      
+      function updateAngleDisplay() {
+        if (!lastRotationMatrix) {
+          angleDisplay.innerHTML = '<div class="status">—</div>';
+          return;
+        }
+        
+        const angles = rotationMatrixToTaitBryan(lastRotationMatrix, selectedOrder);
+        const names = ANGLE_NAMES[selectedOrder];
+        
+        angleDisplay.innerHTML = names.map((name, i) => `
+          <div class="angle-card">
+            <div class="angle-label">${name}</div>
+            <div class="angle-value">${fmt(angles[i], 2)}°</div>
+          </div>
+        `).join('');
+        
+        updateHeadingDisplay(angles);
+      }
+      
+      function updateHeadingDisplay(angles) {
+        if (!angles) return;
+        const heading = ((angles[selectedHeadingAngle] + 360) % 360);
+        headingDisplay.querySelector('.heading-value').textContent = fmt(heading, 2) + '°';
+      }
+      
+      function initOrderButtons() {
+        orderButtons.innerHTML = TAI_BRYAN_ORDERS.map(order => `
+          <button data-order="${order}" class="${order === selectedOrder ? 'active' : ''}">${order}</button>
+        `).join('');
+        
+        orderButtons.querySelectorAll('button').forEach(btn => {
+          btn.addEventListener('click', () => {
+            orderButtons.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            selectedOrder = btn.dataset.order;
+            updateAngleDisplay();
+          });
+        });
+      }
+      
+      function initHeadingButtons() {
+        const angles = ANGLE_NAMES[selectedOrder];
+        headingButtons.innerHTML = angles.map((name, i) => `
+          <button data-index="${i}" class="${i === selectedHeadingAngle ? 'active' : ''}">${name}</button>
+        `).join('');
+        
+        headingButtons.querySelectorAll('button').forEach(btn => {
+          btn.addEventListener('click', () => {
+            headingButtons.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            selectedHeadingAngle = parseInt(btn.dataset.index);
+            const angles = rotationMatrixToTaitBryan(lastRotationMatrix, selectedOrder);
+            updateHeadingDisplay(angles);
+          });
+        });
+      }
+      
+      function showNotSupported() {
+        quatDisplay.textContent = 'AbsoluteOrientationSensor not available.';
+        quatStatus.classList.add('error');
+        quatStatus.textContent = 'Try Chrome on Android with Experimental Web Platform enabled or use a newer build.';
+        startBtn.disabled = true;
+      }
+      
       startBtn.addEventListener('click', async () => {
         if (!('AbsoluteOrientationSensor' in window)) {
           showNotSupported();
@@ -139,36 +378,34 @@
           sensor.addEventListener('reading', () => {
             const q = sensor.quaternion;
             if (!q || q.length < 4) return;
-            const arr = [ q[0], q[1], q[2], q[3] ]; // keep exact order [x,y,z,w]
-            const e = computeFromQuat(arr);
-            const ts = Date.now();
-            lastReading = {
-              q: arr,
-              roll: e.rollDeg,
-              pitch: e.pitchDeg,
-              yaw: e.yawDeg,
-              heading: e.heading,
-              ts
-            };
-            updateDisplay(lastReading);
-            snapBtn.disabled = false;
+            
+            lastQuatData = [q[0], q[1], q[2], q[3]];
+            lastRotationMatrix = quaternionToRotationMatrix(lastQuatData);
+            
+            updateQuatDisplay();
+            updateMatrixDisplay();
+            updateAngleDisplay();
+            
             stopBtn.disabled = false;
           });
+          
           sensor.addEventListener('error', (ev) => {
             console.warn('AbsoluteOrientationSensor error', ev.error);
-            alert('AbsoluteOrientationSensor error: ' + (ev.error && ev.error.name));
+            quatStatus.classList.add('error');
+            quatStatus.textContent = 'Error: ' + (ev.error && ev.error.name);
             startBtn.disabled = false;
             stopBtn.disabled = true;
-            snapBtn.disabled = true;
           });
+          
           sensor.start();
         } catch (err) {
           console.error('Failed to start AbsoluteOrientationSensor:', err);
-          alert('Failed to start AbsoluteOrientationSensor: ' + (err && err.message));
+          quatStatus.classList.add('error');
+          quatStatus.textContent = 'Failed to start: ' + (err && err.message);
           startBtn.disabled = false;
         }
       });
-
+      
       stopBtn.addEventListener('click', () => {
         if (sensor) {
           try { sensor.stop(); } catch(e) { /* ignore */ }
@@ -176,47 +413,14 @@
         }
         startBtn.disabled = false;
         stopBtn.disabled = true;
-        snapBtn.disabled = true;
       });
-
-      snapBtn.addEventListener('click', () => {
-        if (!lastReading) return;
-        const q = lastReading.q;
-        const line = [
-          new Date(lastReading.ts).toISOString(),
-          'quat=[' + q.map(v => Number(v).toFixed(6)).join(',') + ']',
-          'roll=' + Number(lastReading.roll).toFixed(2),
-          'pitch=' + Number(lastReading.pitch).toFixed(2),
-          'yaw=' + Number(lastReading.yaw).toFixed(2),
-          'heading=' + Number(lastReading.heading).toFixed(2)
-        ].join('    ');
-        logEl.value += line + '\\n';
-        // keep focus on textarea so it's easy to copy later
-        logEl.scrollTop = logEl.scrollHeight;
-      });
-
-      copyBtn.addEventListener('click', async () => {
-        try {
-          await navigator.clipboard.writeText(logEl.value);
-          copyBtn.textContent = 'Copied!';
-          setTimeout(() => copyBtn.textContent = 'Copy all snapshots', 1500);
-        } catch (e) {
-          // fallback: select and prompt
-          logEl.select();
-          try {
-            document.execCommand('copy');
-            copyBtn.textContent = 'Copied!';
-            setTimeout(() => copyBtn.textContent = 'Copy all snapshots', 1500);
-          } catch (e2) {
-            alert('Unable to copy automatically — select and copy the text manually.');
-          }
-        }
-      });
-
-      // initial feature detection
+      
+      // Initialize UI
       if (!('AbsoluteOrientationSensor' in window)) {
         showNotSupported();
       }
+      initOrderButtons();
+      initHeadingButtons();
     })();
   </script>
 </body>
