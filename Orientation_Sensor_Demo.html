@@ -272,7 +272,7 @@
       
       function quaternionToRotationMatrix(q) {
         // W3C Generic Sensor spec: quaternion is [x, y, z, w]
-        const x = q[1], y = q[2], z = q[3], w = q[0];
+        const x = q[0], y = q[1], z = q[2], w = q[3];
         
         // Rotation matrix from quaternion
         // Using standard formula: https://en.wikipedia.org/wiki/Quaternion#From_a_quaternion_to_an_orthogonal_matrix
