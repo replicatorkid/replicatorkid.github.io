@@ -266,9 +266,11 @@ const Sensors = {
         const beta = ev.beta; // -180..180 (pitch)
         const gamma = ev.gamma; // -90..90 (roll)
         // webkitCompassHeading exists on some iOS devices (already adjusted)
-        const heading = ev.webkitCompassHeading != null ? ev.webkitCompassHeading : alpha;
-        if (heading != null) {
-          this.raw.orientation = { heading: heading, pitch: beta, roll: gamma, timestamp: ev.timeStamp || Date.now() };
+        const heading = ev.webkitCompassHeading != null ? ev.webkitCompassHeading : (alpha != null ? alpha : null);
+        // Derive yaw as signed angle in [-180, 180) from alpha if available
+        const yaw = (alpha != null) ? (((alpha + 180) % 360) - 180) : null;
+        if (heading != null || yaw != null) {
+          this.raw.orientation = { heading: heading, yaw: yaw, pitch: beta, roll: gamma, timestamp: ev.timeStamp || Date.now() };
           this.status.orientation = true;
           this.status.compass = true;
         }
@@ -324,19 +326,47 @@ const Sensors = {
     }
 
     // Orientation
-    if (this.raw.orientation && this.raw.orientation.heading != null) {
-      const h = this.raw.orientation.heading;
-      
-      // Circular smoothing for heading to avoid wraparound jitter
-      if (this.orientation.heading !== null) {
-        let delta = h - this.orientation.heading;
-        delta = ((delta + 540) % 360) - 180; // wrap to [-180, 180]
-        this.orientation.heading = this.orientation.heading + delta * 0.7;
-        this.orientation.heading = ((this.orientation.heading % 360) + 360) % 360;
+    // Accept either heading or yaw (or both). If yaw (signed) is available, smooth yaw and derive heading from it.
+    if (this.raw.orientation && (this.raw.orientation.heading != null || this.raw.orientation.yaw != null)) {
+      if (this.raw.orientation.yaw != null) {
+        // Smooth yaw (signed -180..180), wrap-aware
+        const nextYaw = this.raw.orientation.yaw; // expected signed degrees
+        if (this.orientation.yaw !== null) {
+          let deltaYaw = nextYaw - this.orientation.yaw;
+          deltaYaw = ((deltaYaw + 180) % 360) - 180; // wrap to [-180,180)
+          this.orientation.yaw = this.orientation.yaw + deltaYaw * 0.7;
+          // normalize to [-180,180)
+          if (this.orientation.yaw >= 180) this.orientation.yaw -= 360;
+          if (this.orientation.yaw < -180) this.orientation.yaw += 360;
+        } else {
+          this.orientation.yaw = nextYaw;
+        }
+
+        // compute compass heading (0..360) from yaw and smooth it circularly
+        const computedHeading = ((this.orientation.yaw % 360) + 360) % 360;
+        if (this.orientation.heading !== null) {
+          let delta = computedHeading - this.orientation.heading;
+          delta = ((delta + 540) % 360) - 180; // wrap to [-180, 180]
+          this.orientation.heading = this.orientation.heading + delta * 0.7;
+          this.orientation.heading = ((this.orientation.heading % 360) + 360) % 360;
+        } else {
+          this.orientation.heading = computedHeading;
+        }
       } else {
-        this.orientation.heading = h;
+        // No yaw available; use heading directly (existing behavior)
+        const h = this.raw.orientation.heading;
+        if (this.orientation.heading !== null) {
+          let delta = h - this.orientation.heading;
+          delta = ((delta + 540) % 360) - 180; // wrap to [-180, 180]
+          this.orientation.heading = this.orientation.heading + delta * 0.7;
+          this.orientation.heading = ((this.orientation.heading % 360) + 360) % 360;
+        } else {
+          this.orientation.heading = h;
+        }
+        // leave orientation.yaw as-is (null if never set)
       }
-      
+
+      // pitch & roll smoothing (unchanged)
       this.orientation.pitch = this._smooth(this.orientation.pitch, this.raw.orientation.pitch || 0, 0.6);
       this.orientation.roll = this._smooth(this.orientation.roll, this.raw.orientation.roll || 0, 0.6);
     }
