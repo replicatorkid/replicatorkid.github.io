@@ -35,7 +35,7 @@
 
     <div class="card">
       <div class="key">Orientation (deg)</div>
-      <div id="orient" class="val">heading: —\npitch: —\nroll: —</div>
+      <div id="orient" class="val">heading: —\nyaw: —\npitch: —\nroll: —</div>
     </div>
 
     <div class="card">
@@ -77,7 +77,7 @@
         `lat: ${g.lat ?? '—'}\nlon: ${g.lon ?? '—'}\nalt: ${g.alt ?? '—'}\naccuracy: ${g.accuracy ?? '—'}\nspeed: ${g.speed ?? '—'}\nheading: ${g.heading ?? '—'}\ntimestamp: ${g.timestamp ?? '—'}`;
 
       document.getElementById('orient').textContent =
-        `heading: ${o.heading ?? '—'}\npitch: ${o.pitch ?? '—'}\nroll: ${o.roll ?? '—'}`;
+        `heading: ${o.heading ?? '—'}\nyaw: ${o.yaw ?? '—'}\npitch: ${o.pitch ?? '—'}\nroll: ${o.roll ?? '—'}`;
 
       document.getElementById('accel').textContent =
         `x: ${a.x ?? '—'}\ny: ${a.y ?? '—'}\nz: ${a.z ?? '—'}`;
