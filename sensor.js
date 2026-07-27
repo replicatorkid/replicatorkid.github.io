@@ -219,16 +219,16 @@ const Sensors = {
               // Convert quaternion to Euler angles (degrees)
               const ysqr = y * y;
 
-              // roll (x-axis rotation)
+              // pitch (x-axis rotation)
               let t0 = +2.0 * (w * x + y * z);
               let t1 = +1.0 - 2.0 * (x * x + ysqr);
-              let roll = Math.atan2(t0, t1);
+              let pitch = Math.atan2(t0, t1);
 
-              // pitch (y-axis rotation)
+              // roll (y-axis rotation)
               let t2 = +2.0 * (w * y - z * x);
               t2 = t2 > 1.0 ? 1.0 : t2;
               t2 = t2 < -1.0 ? -1.0 : t2;
-              let pitch = Math.asin(t2);
+              let roll = Math.asin(t2);
 
               // yaw (z-axis rotation)
               let t3 = +2.0 * (w * z + x * y);
@@ -239,6 +239,7 @@ const Sensors = {
               const RAD2DEG = 180 / Math.PI;
               this.raw.orientation = {
                 heading: ((yaw * RAD2DEG) + 360) % 360,
+                yaw: yaw * RAD2DEG,
                 pitch: pitch * RAD2DEG,
                 roll: roll * RAD2DEG,
                 timestamp: Date.now()
