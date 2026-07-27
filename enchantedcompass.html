@@ -55,6 +55,21 @@ svg{
     max-width:420px;
     max-height:420px;
 }
+
+/* DISTANCE READOUT */
+#distanceReadout{
+    position:fixed;
+    bottom:20px;
+    left:50%;
+    transform:translateX(-50%);
+    font-size:24px;
+    font-weight:bold;
+    background:rgba(0, 0, 0, 0.1);
+    padding:12px 24px;
+    border-radius:8px;
+    text-align:center;
+    min-width:200px;
+}
 </style>
 </head>
 
@@ -102,20 +117,54 @@ svg{
 
 </div>
 
+<div id="distanceReadout">
+    --
+</div>
+
 <script src="sensor.js"></script>
 <script>
 
+/* ===== TARGET COORDINATE ===== */
+const targetCoordinate = {
+    lat: 37.7749,
+    lon: -122.4194
+};
+
 let northAngle = 0;
-let targetAngle = 180;
+let targetAngle = 0;
 
 const needle1 = document.getElementById("needle1");
 const needle2 = document.getElementById("needle2");
 
 const overlay = document.getElementById("overlay");
 const startButton = document.getElementById("startButton");
+const distanceReadout = document.getElementById("distanceReadout");
 
 /* ===== SENSOR STATE ===== */
 let displayHeading = 0;
+
+/* ===== HAVERSINE DISTANCE CALCULATION ===== */
+function haversineDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Earth radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c; // distance in km
+}
+
+/* ===== BEARING CALCULATION ===== */
+function bearingToTarget(lat1, lon1, lat2, lon2) {
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const y = Math.sin(dLon) * Math.cos(lat2 * Math.PI / 180);
+    const x = Math.cos(lat1 * Math.PI / 180) * Math.sin(lat2 * Math.PI / 180) -
+              Math.sin(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.cos(dLon);
+    let bearing = Math.atan2(y, x) * 180 / Math.PI;
+    bearing = (bearing + 360) % 360; // normalize to 0..360
+    return bearing;
+}
 
 /* ===== START ===== */
 startButton.addEventListener("click", async () => {
@@ -146,6 +195,34 @@ function updateHeading(){
     displayHeading = (displayHeading + 360) % 360;
 }
 
+function updateTargetBearing(){
+    // Get current GPS position
+    const currentLat = Sensors.gps.lat;
+    const currentLon = Sensors.gps.lon;
+
+    // If we don't have GPS fix yet, skip
+    if (currentLat == null || currentLon == null) {
+        return;
+    }
+
+    // Calculate bearing to target
+    const bearing = bearingToTarget(currentLat, currentLon, targetCoordinate.lat, targetCoordinate.lon);
+
+    // Adjust for current heading (bearing is relative to north, we need it relative to device)
+    targetAngle = bearing - displayHeading;
+
+    // Calculate and display distance
+    const distance = haversineDistance(currentLat, currentLon, targetCoordinate.lat, targetCoordinate.lon);
+    
+    if (distance < 1) {
+        // Less than 1 km: show in meters
+        distanceReadout.textContent = Math.round(distance * 1000) + " m";
+    } else {
+        // 1 km or more: show in km with 2 decimals
+        distanceReadout.textContent = distance.toFixed(2) + " km";
+    }
+}
+
 /* ===== ANIMATION LOOP ===== */
 function animate(){
 
@@ -154,8 +231,8 @@ function animate(){
     
     northAngle = -displayHeading;
 
-    /* BOTTOM COMPASS = STILL DUMMY */
-    targetAngle -= 0.8;
+    /* BOTTOM COMPASS = BEARING TO TARGET */
+    updateTargetBearing();
 
     needle1.setAttribute(
         "transform",
