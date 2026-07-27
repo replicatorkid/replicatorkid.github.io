@@ -233,7 +233,7 @@ const Sensors = {
               // yaw (z-axis rotation)
               let t3 = +2.0 * (w * z + x * y);
               let t4 = +1.0 - 2.0 * (ysqr + z * z);
-              let yaw = Math.atan2(t3, t4);
+              let yaw = -1 * Math.atan2(t3, t4);
 
               // radians -> degrees
               const RAD2DEG = 180 / Math.PI;
