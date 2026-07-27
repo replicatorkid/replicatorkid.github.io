@@ -13,7 +13,7 @@ const Sensors = {
 
   // public outputs (smoothed)
   gps: { lat: null, lon: null, alt: null, accuracy: null, speed: null, heading: null, timestamp: null },
-  orientation: { heading: null, pitch: null, roll: null }, // degrees
+  orientation: { heading: null, yaw: null, pitch: null, roll: null }, // degrees
   acceleration: { x: null, y: null, z: null }, // m/s^2
   rotation: { x: null, y: null, z: null }, // deg/s
 
