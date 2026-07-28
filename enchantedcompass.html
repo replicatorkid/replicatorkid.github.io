@@ -56,17 +56,15 @@ svg{
 
 /* DISTANCE READOUT */
 #distanceReadout{
-    position:fixed;
-    bottom:20px;
-    left:50%;
-    transform:translateX(-50%);
-    font-size:24px;
+    /* sit in normal flow between the two compasses */
+    position:static;
+    margin:8px auto;
+    font-size:20px;
     font-weight:bold;
-    background:rgba(0, 0, 0, 0.1);
-    padding:12px 24px;
-    border-radius:8px;
+    background:transparent; /* same white background as page */
+    padding:6px 12px;
     text-align:center;
-    min-width:200px;
+    min-width:160px;
 }
 </style>
 </head>
@@ -96,6 +94,10 @@ svg{
 
 </div>
 
+<div id="distanceReadout">
+    --
+</div>
+
 <div class="half">
 
 <svg viewBox="0 0 200 200">
@@ -115,9 +117,6 @@ svg{
 
 </div>
 
-<div id="distanceReadout">
-    --
-</div>
 
 <script src="sensor.js"></script>
 <script>
@@ -210,14 +209,16 @@ function updateTargetBearing(){
     targetAngle = bearing - displayHeading;
 
     // Calculate and display distance
-    const distance = haversineDistance(currentLat, currentLon, targetCoordinate.lat, targetCoordinate.lon);
-    
-    if (distance < 1) {
-        // Less than 1 km: show in meters
-        distanceReadout.textContent = Math.round(distance * 1000) + " m";
+    const distanceKm = haversineDistance(currentLat, currentLon, targetCoordinate.lat, targetCoordinate.lon);
+    const distanceMiles = distanceKm * 0.621371;
+
+    if (distanceMiles >= 1) {
+        // 1 mile or more: show in miles with 2 decimals
+        distanceReadout.textContent = distanceMiles.toFixed(2) + " mi";
     } else {
-        // 1 km or more: show in km with 2 decimals
-        distanceReadout.textContent = distance.toFixed(2) + " km";
+        // Less than 1 mile: show in yards
+        const yards = Math.round(distanceMiles * 1760);
+        distanceReadout.textContent = yards + " yd";
     }
 }
 
