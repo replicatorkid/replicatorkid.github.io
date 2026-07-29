@@ -262,7 +262,7 @@ const Sensors = {
     if (!tryGeneric()) {
       const handler = (ev) => {
         // alpha: rotation around z (0..360) — often used as heading (but not always absolute)
-        const alpha = ev.alpha; // 0..360
+        const alpha = ev.alpha - 360; // 0..360
         const beta = ev.beta; // -180..180 (pitch)
         const gamma = ev.gamma; // -90..90 (roll)
         // webkitCompassHeading exists on some iOS devices (already adjusted)
