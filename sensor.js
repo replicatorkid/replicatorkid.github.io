@@ -262,7 +262,7 @@ const Sensors = {
     if (!tryGeneric()) {
       const handler = (ev) => {
         // alpha: rotation around z (0..360) — often used as heading (but not always absolute)
-        const alpha = ev.alpha - 360; // 0..360
+        const alpha = ev.alpha; // 0..360
         const beta = ev.beta; // -180..180 (pitch)
         const gamma = ev.gamma; // -90..90 (roll)
         // webkitCompassHeading exists on some iOS devices (already adjusted)
@@ -270,7 +270,7 @@ const Sensors = {
         // Derive yaw as signed angle in [-180, 180) from alpha if available
         const yaw = (alpha != null) ? (((alpha + 180) % 360) - 180) : null;
         if (heading != null || yaw != null) {
-          this.raw.orientation = { heading: heading, yaw: yaw, pitch: beta, roll: gamma, timestamp: ev.timeStamp || Date.now() };
+          this.raw.orientation = { heading: alpha, yaw: yaw, pitch: beta, roll: gamma, timestamp: ev.timeStamp || Date.now() };
           this.status.orientation = true;
           this.status.compass = true;
         }
