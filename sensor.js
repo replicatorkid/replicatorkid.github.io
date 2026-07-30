@@ -270,7 +270,7 @@ const Sensors = {
         // Derive yaw as signed angle
         const yaw = (alpha != null) ? (-alpha) : null;
         if (heading != null || yaw != null) {
-          this.raw.orientation = { heading: heading, yaw: yaw, pitch: beta, roll: gamma, timestamp: ev.timeStamp || Date.now() };
+          this.raw.orientation = { heading: heading, yaw: alpha, pitch: beta, roll: gamma, timestamp: ev.timeStamp || Date.now() };
           this.status.orientation = true;
           this.status.compass = true;
         }
