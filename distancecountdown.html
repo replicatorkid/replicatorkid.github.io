@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Signal</title>
+
+<style>
+html, body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #000;
+    color: #fff;
+    font-family: Consolas, Menlo, Monaco, monospace;
+}
+
+#start {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 2rem;
+    padding: 0.8em 1.8em;
+    cursor: pointer;
+}
+
+#display {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    font-size: min(28vw, 32vh);
+    font-weight: bold;
+    letter-spacing: 0.05em;
+    display: none;
+    user-select: none;
+}
+</style>
+</head>
+
+<body>
+
+<button id="start">START</button>
+
+<div id="display">999999</div>
+
+<script>
+
+//==================================================
+// Destination Coordinates
+//==================================================
+
+const DEST_LAT = 43.740525;
+const DEST_LON = -87.968639;
+
+// Ignore fixes with worse accuracy than this (meters)
+const MAX_ACCURACY = 15;
+
+// Exponent controlling the nonlinear countdown.
+// 0.5 = square root.
+// Smaller values slow the countdown more near the end.
+const CURVE = 0.5;
+
+//==================================================
+
+const startButton = document.getElementById("start");
+const display = document.getElementById("display");
+
+let startingDistance = null;
+
+//--------------------------------------------------
+
+startButton.onclick = () => {
+
+    if (!navigator.geolocation) {
+        alert("Geolocation not supported.");
+        return;
+    }
+
+    navigator.geolocation.watchPosition(
+        positionUpdate,
+        positionError,
+        {
+            enableHighAccuracy: true,
+            maximumAge: 0,
+            timeout: 10000
+        }
+    );
+
+    startButton.style.display = "none";
+    display.style.display = "block";
+};
+
+//--------------------------------------------------
+
+function positionUpdate(pos) {
+
+    if (pos.coords.accuracy > MAX_ACCURACY)
+        return;
+
+    const distance = haversine(
+        pos.coords.latitude,
+        pos.coords.longitude,
+        DEST_LAT,
+        DEST_LON
+    );
+
+    if (startingDistance === null) {
+
+        startingDistance = Math.max(distance, 1);
+
+    }
+
+    const ratio = Math.min(distance / startingDistance, 1);
+
+    let value = Math.round(
+        999999 * Math.pow(ratio, CURVE)
+    );
+
+    value = Math.max(0, Math.min(999999, value));
+
+    display.textContent =
+        value.toString().padStart(6, "0");
+}
+
+//--------------------------------------------------
+
+function positionError(err) {
+
+    display.textContent = "ERROR";
+
+    console.log(err);
+}
+
+//--------------------------------------------------
+// Haversine Distance (meters)
+//--------------------------------------------------
+
+function haversine(lat1, lon1, lat2, lon2) {
+
+    const R = 6371000;
+
+    const toRad = d => d * Math.PI / 180;
+
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+
+    const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(toRad(lat1)) *
+        Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) ** 2;
+
+    return 2 * R * Math.atan2(
+        Math.sqrt(a),
+        Math.sqrt(1 - a)
+    );
+}
+
+</script>
+
+</body>
+</html>
