@@ -265,7 +265,8 @@ const Sensors = {
         const beta = ev.beta; // -180..180 (pitch)
         const gamma = ev.gamma; // -90..90 (roll)
         // webkitCompassHeading exists on some iOS devices (already adjusted)
-        const heading = ev.webkitCompassHeading != null ? (360 - ev.webkitCompassHeading): null;
+        const heading = ev.webkitCompassHeading != null ? ev.webkitCompassHeading: null;
+        heading = 360 - heading;
         // Derive yaw as signed angle
         const yaw = (alpha != null) ? alpha * -1 : null;
         if (heading != null || yaw != null) {
