@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Compass Test</title>
+
+/* Deploy comment 2 */
+
+<style>
+html, body{
+    margin:0;
+    width:100%;
+    height:100%;
+    background:white;
+    overflow:hidden;
+    font-family:sans-serif;
+}
+
+body{
+    display:flex;
+    flex-direction:column;
+}
+
+/* START OVERLAY */
+#overlay{
+    position:fixed;
+    inset:0;
+    background:white;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    z-index:10;
+}
+
+#startButton{
+    font-size:22px;
+    padding:16px 28px;
+    border:2px solid black;
+    background:white;
+}
+
+/* LAYOUT */
+.half{
+    flex:1;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+}
+
+svg{
+    width:65vmin;
+    height:65vmin;
+    max-width:420px;
+    max-height:420px;
+}
+</style>
+</head>
+
+<body>
+
+<div id="overlay">
+    <button id="startButton">Tap to Start</button>
+</div>
+
+<div class="half">
+
+<svg viewBox="0 0 200 200">
+
+    <circle cx="100" cy="100" r="90"
+            fill="white"
+            stroke="black"
+            stroke-width="2"/>
+
+    <g id="needle1">
+        <polygon points="100,34 106,100 100,94 94,100"
+                 fill="black"/>
+        <circle cx="100" cy="100" r="4" fill="black"/>
+    </g>
+
+</svg>
+
+</div>
+
+<div class="half">
+
+<svg viewBox="0 0 200 200">
+
+    <circle cx="100" cy="100" r="90"
+            fill="white"
+            stroke="black"
+            stroke-width="2"/>
+
+    <g id="needle2">
+        <polygon points="100,34 106,100 100,94 94,100"
+                 fill="black"/>
+        <circle cx="100" cy="100" r="4" fill="black"/>
+    </g>
+
+</svg>
+
+</div>
+
+<script>
+
+let northAngle = 0;
+let targetAngle = 180;
+
+const needle1 = document.getElementById("needle1");
+const needle2 = document.getElementById("needle2");
+
+const overlay = document.getElementById("overlay");
+const startButton = document.getElementById("startButton");
+
+/* ===== SENSOR STATE ===== */
+let rawHeading = 0;
+
+// What the needle is currently displaying
+let displayHeading = 0;
+
+/* ===== DEVICE ORIENTATION ===== */
+function handleOrientation(event) {
+    // blah, blah
+    // iOS Safari
+    if (event.webkitCompassHeading !== undefined) {
+        rawHeading = event.webkitCompassHeading;
+        return;
+    }
+
+    // Android fallback - check for valid number, not just null
+    if (event.alpha !== null && event.alpha !== undefined) {
+        rawHeading = 360 - event.alpha;
+    }
+}
+
+/* ===== START ===== */
+startButton.addEventListener("click", async () => {
+    try {
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(() => {}, () => {}, {
+                enableHighAccuracy: true
+            });
+        }
+
+        // iOS 13+ permission request
+        if (typeof DeviceOrientationEvent !== "undefined" &&
+            typeof DeviceOrientationEvent.requestPermission === "function") {
+            await DeviceOrientationEvent.requestPermission();
+        }
+        // Android doesn't need requestPermission, but listener still works
+        
+        window.addEventListener("deviceorientation", handleOrientation);
+    } catch (e) {
+        console.error("Orientation setup failed:", e);
+    }
+
+    overlay.style.display = "none";
+    animate();
+});
+
+function updateHeading(){
+
+    // Difference between desired and displayed heading
+    let delta = rawHeading - displayHeading;
+
+    // Wrap into the range [-180, 180]
+    delta = ((delta + 540) % 360) - 180;
+
+    // Move 8% of the remaining distance each frame
+    displayHeading += delta * 0.04;
+
+    // Keep value in [0,360)
+    displayHeading = (displayHeading + 360) % 360;
+}
+
+/* ===== ANIMATION LOOP ===== */
+function animate(){
+
+    /* TOP COMPASS = REAL HEADING */
+    updateHeading();
+    
+    northAngle = -displayHeading;
+
+    /* BOTTOM COMPASS = STILL DUMMY */
+    targetAngle -= 0.8;
+
+    needle1.setAttribute(
+        "transform",
+        `rotate(${northAngle} 100 100)`
+    );
+
+    needle2.setAttribute(
+        "transform",
+        `rotate(${targetAngle} 100 100)`
+    );
+
+    requestAnimationFrame(animate);
+}
+
+</script>
+
+</body>
+</html>
