@@ -107,6 +107,10 @@ let targetYards = 0;
 let displayedYards = 0;
 let firstFix = true;
 
+let lastGpsYards = 0;
+let gpsSpeedYards = 0;      // yards per second
+let lastGpsTime = Date.now();
+
 //======================================================
 
 startButton.onclick = function(){
@@ -136,6 +140,13 @@ startButton.onclick = function(){
 
 setInterval(function(){
 
+    const elapsed = (Date.now() - lastGpsTime) / 1000;
+
+    targetYards = Math.max(
+        0,
+        lastGpsYards - gpsSpeedYards * elapsed
+    );
+    
 if (Math.abs(targetYards - displayedYards) <= DEADBAND) {
     displayedYards = targetYards;
 }
@@ -151,7 +162,7 @@ else {
 }
 
     display.textContent =
-        displayedYards.toLocaleString();
+    Math.round(displayedYards).toLocaleString();
 
 }, UPDATE_MS);
 
@@ -171,18 +182,19 @@ function gpsUpdate(position){
         DEST_LON
     );
 
-    targetYards = Math.round(meters * 1.0936133);
+    targetYards = meters * 1.0936133;
 
-    if(targetYards < 0)
-        targetYards = 0;
+    lastGpsYards = targetYards;
 
-    // Jump immediately to the first reading.
+    // GPS speed is meters/sec. Convert to yards/sec.
+    gpsSpeedYards = Math.max(0, (position.coords.speed || 0) * 1.0936133);
+
+    lastGpsTime = Date.now();
+
     if(firstFix){
-
         displayedYards = targetYards;
         firstFix = false;
     }
-
 }
 
 //======================================================
