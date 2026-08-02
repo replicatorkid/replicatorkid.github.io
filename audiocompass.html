@@ -197,7 +197,8 @@
           const sGain = audioCtx.createGain();
           sGain.gain.setValueAtTime(0, audioCtx.currentTime);
           sOsc.connect(sGain);
-          sGain.connect(analyser);
+          // connect to masterGain so analyser (placed after masterGain) reflects final volume
+          sGain.connect(masterGain);
 
           sineOsc[i] = sOsc;
           sineGain[i] = sGain;
@@ -209,15 +210,16 @@
           const qGain = audioCtx.createGain();
           qGain.gain.setValueAtTime(0, audioCtx.currentTime);
           qOsc.connect(qGain);
-          qGain.connect(analyser);
+          // connect to masterGain so analyser (placed after masterGain) reflects final volume
+          qGain.connect(masterGain);
 
           squareOsc[i] = qOsc;
           squareGain[i] = qGain;
         }
 
-        // analyser -> master -> destination
-        analyser.connect(masterGain);
-        masterGain.connect(audioCtx.destination);
+        // connect master -> analyser -> destination so analyser sees post-master level
+        masterGain.connect(analyser);
+        analyser.connect(audioCtx.destination);
 
         // start all oscillators "simultaneously"
         const startAt = 0; // start immediately from now
