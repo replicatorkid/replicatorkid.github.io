@@ -195,10 +195,10 @@ function gpsSuccess(position){
     //----------------------------------------
     //
     // 0 m/s -> silent
-    // 3 m/s -> full volume
+    // 9 m/s -> full volume
     //
 
-    let volume = speed/3;
+    let volume = speed/9;
     volume = Math.max(0, Math.min(1, volume));
 
     masterGain.gain.linearRampToValueAtTime(
