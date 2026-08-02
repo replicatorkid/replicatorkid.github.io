@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Audio Compass Prototype</title>
+
+<style>
+body{
+    font-family:sans-serif;
+    max-width:700px;
+    margin:auto;
+    padding:2em;
+}
+
+button{
+    font-size:1.2em;
+    padding:.8em 1.4em;
+}
+
+pre{
+    background:#eee;
+    padding:1em;
+}
+</style>
+</head>
+
+<body>
+
+<h2>Audio Compass Prototype</h2>
+
+<button id="startButton">
+Start GPS Audio
+</button>
+
+<pre id="status">
+Waiting...
+</pre>
+
+<script>
+
+let audioContext;
+
+let sineOsc;
+let squareOsc;
+
+let sineGain;
+let squareGain;
+let masterGain;
+
+const status = document.getElementById("status");
+
+document.getElementById("startButton").onclick = async ()=>{
+
+    //----------------------------------------
+    // Audio
+    //----------------------------------------
+
+    audioContext = new AudioContext();
+
+    sineOsc = audioContext.createOscillator();
+    squareOsc = audioContext.createOscillator();
+
+    sineGain = audioContext.createGain();
+    squareGain = audioContext.createGain();
+    masterGain = audioContext.createGain();
+
+    sineOsc.type="sine";
+    squareOsc.type="square";
+
+    sineOsc.frequency.value=440;
+    squareOsc.frequency.value=440;
+
+    sineGain.gain.value=1;
+    squareGain.gain.value=0;
+    masterGain.gain.value=0;
+
+    sineOsc.connect(sineGain);
+    squareOsc.connect(squareGain);
+
+    sineGain.connect(masterGain);
+    squareGain.connect(masterGain);
+
+    masterGain.connect(audioContext.destination);
+
+    sineOsc.start();
+    squareOsc.start();
+
+    //----------------------------------------
+    // GPS
+    //----------------------------------------
+
+    navigator.geolocation.watchPosition(
+        gpsSuccess,
+        gpsError,
+        {
+            enableHighAccuracy:true,
+            maximumAge:0,
+            timeout:5000
+        }
+    );
+
+};
+
+function gpsSuccess(position){
+
+    //----------------------------------------
+    // GPS values
+    //----------------------------------------
+
+    let speed = position.coords.speed;
+
+    let heading = position.coords.heading;
+
+    if(speed==null) speed=0;
+    if(heading==null) heading=0;
+
+    //----------------------------------------
+    // MASTER VOLUME
+    //----------------------------------------
+
+    //
+    // 0 m/s -> silent
+    // 3 m/s -> full volume
+    //
+
+    let volume = speed/3;
+
+    volume=Math.max(0,Math.min(1,volume));
+
+    masterGain.gain.linearRampToValueAtTime(
+        volume,
+        audioContext.currentTime+0.2
+    );
+
+    //----------------------------------------
+    // TIMBRE
+    //----------------------------------------
+
+    //
+    // Demo:
+    //
+    // North = pure sine
+    //
+    // South = pure square
+    //
+
+    let squareAmount = heading/180;
+
+    squareAmount=Math.max(0,Math.min(1,squareAmount));
+
+    let sineAmount = 1-squareAmount;
+
+    sineGain.gain.linearRampToValueAtTime(
+        sineAmount,
+        audioContext.currentTime+0.2
+    );
+
+    squareGain.gain.linearRampToValueAtTime(
+        squareAmount,
+        audioContext.currentTime+0.2
+    );
+
+    //----------------------------------------
+    // Display
+    //----------------------------------------
+
+    status.textContent=
+`Latitude : ${position.coords.latitude}
+
+Longitude: ${position.coords.longitude}
+
+Speed    : ${speed.toFixed(2)} m/s
+
+Heading  : ${heading}
+
+Volume   : ${volume.toFixed(2)}
+
+Sine     : ${sineAmount.toFixed(2)}
+
+Square   : ${squareAmount.toFixed(2)}
+`;
+
+}
+
+function gpsError(err){
+
+    status.textContent=
+        "GPS Error\n\n"+err.message;
+
+}
+
+</script>
+
+</body>
+</html>
