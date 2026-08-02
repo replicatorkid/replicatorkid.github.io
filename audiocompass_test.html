@@ -36,6 +36,9 @@ Start GPS Audio
 Waiting...
 </pre>
 
+<!-- include the sensor helper (provides global Sensors) -->
+<script src="/sensor.js"></script>
+
 <script>
 
 let audioContext;
@@ -47,6 +50,9 @@ let sineGain;
 let squareGain;
 let masterGain;
 
+let sensorPollId = null;
+let geoWatchId = null;
+
 const status = document.getElementById("status");
 
 document.getElementById("startButton").onclick = async ()=>{
@@ -55,6 +61,7 @@ document.getElementById("startButton").onclick = async ()=>{
     // Audio
     //----------------------------------------
 
+    // Create an AudioContext (user gesture already happened on click)
     audioContext = new AudioContext();
 
     sineOsc = audioContext.createOscillator();
@@ -70,6 +77,7 @@ document.getElementById("startButton").onclick = async ()=>{
     sineOsc.frequency.value=440;
     squareOsc.frequency.value=440;
 
+    // start silent, will ramp to values on sensor updates
     sineGain.gain.value=1;
     squareGain.gain.value=0;
     masterGain.gain.value=0;
@@ -86,20 +94,89 @@ document.getElementById("startButton").onclick = async ()=>{
     squareOsc.start();
 
     //----------------------------------------
-    // GPS
+    // Sensors: prefer Sensors (sensor.js), fallback to navigator.geolocation
     //----------------------------------------
 
-    navigator.geolocation.watchPosition(
-        gpsSuccess,
-        gpsError,
-        {
-            enableHighAccuracy:true,
-            maximumAge:0,
-            timeout:5000
-        }
-    );
+    // Try to start Sensors if available
+    const useSensors = typeof window.Sensors !== 'undefined' && window.Sensors != null;
 
+    if (useSensors) {
+        try {
+            // Sensors.start() asks for any needed permissions and begins smoothing/updating
+            await window.Sensors.start();
+            startPollingSensors();
+            return;
+        } catch (e) {
+            // If Sensors.start fails, fall through to geolocation fallback
+            console.warn("Sensors.start() failed:", e);
+        }
+    }
+
+    // Fallback to navigator.geolocation.watchPosition
+    if (navigator.geolocation && typeof navigator.geolocation.watchPosition === 'function') {
+        geoWatchId = navigator.geolocation.watchPosition(
+            gpsSuccess,
+            gpsError,
+            {
+                enableHighAccuracy:true,
+                maximumAge:0,
+                timeout:5000
+            }
+        );
+        return;
+    }
+
+    status.textContent = "No sensor or geolocation provider available.";
 };
+
+function startPollingSensors(){
+    // Clear any existing poller
+    if (sensorPollId) {
+        clearInterval(sensorPollId);
+        sensorPollId = null;
+    }
+
+    const rate = (window.Sensors && window.Sensors.updateRate) ? window.Sensors.updateRate : 30;
+    const intervalMs = Math.max(50, Math.round(1000 / rate)); // clamp min interval
+
+    sensorPollId = setInterval(()=>{
+        const g = window.Sensors && window.Sensors.gps ? window.Sensors.gps : null;
+        if (!g) {
+            status.textContent = "Waiting for sensor GPS data...";
+            return;
+        }
+
+        // sensor.js stores lat/lon as lat/lon, heading in degrees, speed in m/s
+        const pos = {
+            coords: {
+                latitude: (g.lat != null ? g.lat : null),
+                longitude: (g.lon != null ? g.lon : null),
+                speed: (g.speed != null ? g.speed : null),
+                heading: (g.heading != null ? g.heading : null)
+            },
+            timestamp: g.timestamp || Date.now()
+        };
+
+        // If there's no lat/lon yet, show waiting message
+        if (pos.coords.latitude == null || pos.coords.longitude == null) {
+            status.textContent = "Waiting for GPS fix...";
+            return;
+        }
+
+        gpsSuccess(pos);
+    }, intervalMs);
+}
+
+function stopPollingSensors(){
+    if (sensorPollId) {
+        clearInterval(sensorPollId);
+        sensorPollId = null;
+    }
+    if (geoWatchId != null && navigator.geolocation) {
+        navigator.geolocation.clearWatch(geoWatchId);
+        geoWatchId = null;
+    }
+}
 
 function gpsSuccess(position){
 
@@ -108,56 +185,56 @@ function gpsSuccess(position){
     //----------------------------------------
 
     let speed = position.coords.speed;
-
     let heading = position.coords.heading;
 
-    if(speed==null) speed=0;
-    if(heading==null) heading=0;
+    if(speed==null || isNaN(speed)) speed=0;
+    if(heading==null || isNaN(heading)) heading=0;
 
     //----------------------------------------
-    // MASTER VOLUME
+    // MASTER VOLUME (speed -> gain)
     //----------------------------------------
-
     //
     // 0 m/s -> silent
     // 3 m/s -> full volume
     //
 
     let volume = speed/3;
-
-    volume=Math.max(0,Math.min(1,volume));
+    volume = Math.max(0, Math.min(1, volume));
 
     masterGain.gain.linearRampToValueAtTime(
         volume,
-        audioContext.currentTime+0.2
+        audioContext.currentTime + 0.2
     );
 
     //----------------------------------------
-    // TIMBRE
+    // TIMBRE (heading/course -> mix)
     //----------------------------------------
-
     //
-    // Demo:
-    //
-    // North = pure sine
-    //
-    // South = pure square
+    // Requirement:
+    //   Due North (0°) -> full sine (squareAmount = 0)
+    //   Due South (180°) -> full square (squareAmount = 1)
+    // Mapping used: a triangular mapping with peak at 180°
+    //   squareAmount = 1 - |(h - 180)| / 180
+    // This yields:
+    //   0° -> 0, 90° -> 0.5, 180° -> 1, 270° -> 0.5, 360° -> 0
     //
 
-    let squareAmount = heading/180;
+    // Normalize heading to [0,360)
+    let h = ((heading % 360) + 360) % 360;
 
-    squareAmount=Math.max(0,Math.min(1,squareAmount));
+    let squareAmount = 1 - Math.abs((h - 180) / 180);
+    squareAmount = Math.max(0, Math.min(1, squareAmount));
 
-    let sineAmount = 1-squareAmount;
+    let sineAmount = 1 - squareAmount;
 
     sineGain.gain.linearRampToValueAtTime(
         sineAmount,
-        audioContext.currentTime+0.2
+        audioContext.currentTime + 0.2
     );
 
     squareGain.gain.linearRampToValueAtTime(
         squareAmount,
-        audioContext.currentTime+0.2
+        audioContext.currentTime + 0.2
     );
 
     //----------------------------------------
@@ -171,7 +248,7 @@ Longitude: ${position.coords.longitude}
 
 Speed    : ${speed.toFixed(2)} m/s
 
-Heading  : ${heading}
+Heading  : ${h.toFixed(1)}°
 
 Volume   : ${volume.toFixed(2)}
 
@@ -185,7 +262,7 @@ Square   : ${squareAmount.toFixed(2)}
 function gpsError(err){
 
     status.textContent=
-        "GPS Error\n\n"+err.message;
+        "GPS Error\n\n"+(err && err.message ? err.message : String(err));
 
 }
 
