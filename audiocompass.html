@@ -1,1 +1,337 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Audio Compass — Real-Time Audio+Sensors</title>
+  <style>
+    :root{color-scheme: dark}
+    html,body{height:100%;margin:0;background:#0b0f19;font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial}
+    .stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+    canvas#vis{position:absolute;inset:0;width:100%;height:100%;display:block}
 
+    /* central init button */
+    .init-wrap{position:relative;z-index:10;display:flex;align-items:center;justify-content:center;pointer-events:auto}
+    .init-btn{
+      background:linear-gradient(180deg,#101426 0%,#0f1724 100%);
+      color:#e6eef8;border:1px solid rgba(255,255,255,0.06);
+      padding:20px 28px;border-radius:14px;font-size:20px;font-weight:600;cursor:pointer;
+      box-shadow:0 6px 30px rgba(2,6,23,0.6), inset 0 -6px 20px rgba(255,255,255,0.02);
+      transition:opacity 600ms ease,transform 400ms cubic-bezier(.2,.9,.25,1),filter 200ms;
+      backdrop-filter: blur(6px);
+    }
+    .init-btn:active{transform:translateY(1px) scale(.995)}
+    .init-btn.hidden{opacity:0;transform:scale(.96);pointer-events:none}
+
+    /* small HUD info */
+    .hud{position:fixed;left:14px;bottom:14px;padding:8px 12px;border-radius:10px;background:rgba(255,255,255,0.03);color:#9fb3ff;font-size:13px;border:1px solid rgba(255,255,255,0.03)}
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <canvas id="vis" aria-hidden="true"></canvas>
+
+    <div class="init-wrap">
+      <button id="init" class="init-btn">Initialize Audio System</button>
+    </div>
+
+    <div id="hud" class="hud">Status: idle</div>
+  </div>
+
+  <script src="sensor.js"></script>
+  <script>
+    // Audio Compass page implementing the Target Specification
+    (function(){
+      // ----- DOM + canvas setup -----
+      const btn = document.getElementById('init');
+      const hud = document.getElementById('hud');
+      const canvas = document.getElementById('vis');
+      const ctx = canvas.getContext('2d');
+
+      function resizeCanvas(){
+        const dpr = window.devicePixelRatio || 1;
+        const w = Math.max(1, window.innerWidth);
+        const h = Math.max(1, window.innerHeight);
+        canvas.style.width = w + 'px';
+        canvas.style.height = h + 'px';
+        canvas.width = Math.round(w * dpr);
+        canvas.height = Math.round(h * dpr);
+        ctx.setTransform(dpr,0,0,dpr,0,0);
+      }
+      window.addEventListener('resize', resizeCanvas);
+      resizeCanvas();
+
+      // ----- Sensor wrapper approximate mapping -----
+      // We expose a `sensor` object with the three floats required by the spec.
+      const sensor = { closeness: 1.0, speed: 0.0, courseAlignment: 0.5 };
+      window.audioCompassSensor = sensor; // debug access if needed
+
+      // Target coordinate for "destination" (example: a nearby point). User may edit.
+      const TARGET = { lat: 37.7749, lon: -122.4194 }; // default: San Francisco
+      const MAX_DISTANCE_METERS = 2000; // map distances >= this to closeness=1.0
+
+      // small helper: haversine meters
+      function toRad(v){ return v * Math.PI / 180; }
+      function haversineMeters(lat1, lon1, lat2, lon2){
+        const R = 6371000;
+        const dLat = toRad(lat2 - lat1);
+        const dLon = toRad(lon2 - lon1);
+        const a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)*Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+      }
+
+      // compute bearing from (lat1,lon1) to (lat2,lon2) in degrees 0..360
+      function bearingTo(lat1, lon1, lat2, lon2){
+        const y = Math.sin(toRad(lon2-lon1)) * Math.cos(toRad(lat2));
+        const x = Math.cos(toRad(lat1))*Math.sin(toRad(lat2)) - Math.sin(toRad(lat1))*Math.cos(toRad(lat2))*Math.cos(toRad(lon2-lon1));
+        const brng = (Math.atan2(y, x) * 180/Math.PI + 360) % 360;
+        return brng;
+      }
+
+      // sensor updater: reads from global Sensors if available, else uses defaults
+      let lastPos = null;
+      function updateSensorFromSensorsModule(){
+        try{
+          if (window.Sensors && Sensors.gps && Sensors.gps.lat != null){
+            const lat = Sensors.gps.lat;
+            const lon = Sensors.gps.lon;
+            const speed = (Sensors.gps.speed != null) ? Sensors.gps.speed : 0; // m/s
+
+            const dist = haversineMeters(lat, lon, TARGET.lat, TARGET.lon);
+            sensor.closeness = Math.min(1.0, dist / MAX_DISTANCE_METERS);
+
+            // map speed to a small float (we leave it as m/s for scaling by speedVolumeScaleFactor later)
+            sensor.speed = Math.max(0, speed);
+
+            // compute heading: prefer orientation.heading if available
+            let heading = null;
+            if (Sensors.orientation && Sensors.orientation.heading != null){
+              heading = Sensors.orientation.heading; // 0..360
+            } else if (Sensors.gps && Sensors.gps.heading != null){
+              heading = Sensors.gps.heading; // may be null
+            }
+
+            if (heading == null){
+              // if no heading, guess from last position
+              if (lastPos){
+                const eps = 1e-6;
+                if (Math.abs(lastPos.lat - lat) > eps || Math.abs(lastPos.lon - lon) > eps){
+                  heading = bearingTo(lastPos.lat, lastPos.lon, lat, lon);
+                }
+              }
+            }
+
+            // bearing to target
+            const targetBearing = bearingTo(lat, lon, TARGET.lat, TARGET.lon);
+            if (heading == null){
+              // no reliable heading; assume neutral alignment
+              sensor.courseAlignment = 0.5;
+            } else {
+              // delta between heading and bearingToTarget in radians
+              let delta = Math.abs(((heading - targetBearing + 540) % 360) - 180); // 0..180
+              const deltaRad = delta * Math.PI/180;
+              // map to [0,1] where 1 = aligned, 0 = opposite
+              sensor.courseAlignment = Math.max(0, (1 + Math.cos(deltaRad)) / 2);
+            }
+
+            lastPos = { lat, lon };
+            return;
+          }
+        }catch(e){ console.warn('sensor mapping failed', e); }
+
+        // fallback defaults
+        sensor.closeness = 1.0;
+        sensor.speed = 0;
+        sensor.courseAlignment = 0.5;
+      }
+
+      // ----- Audio graph setup -----
+      const V13_Ratios = [3/4, 3/2, 7/4, 3, 15/8, 9/4, 7/2, 5];
+      const I_Ratios   = [1,   2,   3,   4, 5,    6,   8,   10];
+      const voiceGains = [0.25, 0.22, 0.18, 0.15, 0.12, 0.10, 0.08, 0.06];
+
+      const baseFreq = 65.406; // C2
+
+      let audioCtx = null;
+      let analyser = null;
+      let masterGain = null;
+
+      const sineOsc = new Array(8);
+      const squareOsc = new Array(8);
+      const sineGain = new Array(8);
+      const squareGain = new Array(8);
+
+      // intervals / raf handles
+      let sensorInterval = null;
+      let rafId = null;
+
+      // volume scaling factor used for master mapping (adjustable)
+      const speedVolumeScaleFactor = 0.06; // tweak to keep master <= 0.8 for reasonable speeds
+
+      function buildAudioGraph(){
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) throw new Error('Web Audio API not supported');
+        audioCtx = new AC();
+
+        // Resume if suspended (autoplay policies)
+        if (audioCtx.state === 'suspended'){
+          audioCtx.resume().catch(()=>{});
+        }
+
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 2048;
+        analyser.smoothingTimeConstant = 0.2;
+
+        masterGain = audioCtx.createGain();
+        masterGain.gain.setValueAtTime(0, audioCtx.currentTime);
+
+        // create 8 sine and 8 square oscillators
+        for (let i=0;i<8;i++){
+          const startFreq = baseFreq * V13_Ratios[i];
+
+          // Sine track
+          const sOsc = audioCtx.createOscillator();
+          sOsc.type = 'sine';
+          sOsc.frequency.setValueAtTime(startFreq, audioCtx.currentTime);
+          const sGain = audioCtx.createGain();
+          sGain.gain.setValueAtTime(0, audioCtx.currentTime);
+          sOsc.connect(sGain);
+          sGain.connect(analyser);
+
+          sineOsc[i] = sOsc;
+          sineGain[i] = sGain;
+
+          // Square track
+          const qOsc = audioCtx.createOscillator();
+          qOsc.type = 'square';
+          qOsc.frequency.setValueAtTime(startFreq, audioCtx.currentTime);
+          const qGain = audioCtx.createGain();
+          qGain.gain.setValueAtTime(0, audioCtx.currentTime);
+          qOsc.connect(qGain);
+          qGain.connect(analyser);
+
+          squareOsc[i] = qOsc;
+          squareGain[i] = qGain;
+        }
+
+        // analyser -> master -> destination
+        analyser.connect(masterGain);
+        masterGain.connect(audioCtx.destination);
+
+        // start all oscillators "simultaneously"
+        const startAt = 0; // start immediately from now
+        for (let i=0;i<8;i++){
+          sineOsc[i].start(startAt);
+          squareOsc[i].start(startAt);
+        }
+
+        // set up sensor polling + dsp mapping
+        sensorInterval = setInterval(dspPoll, 100);
+
+        // start visualizer
+        renderLoop();
+      }
+
+      function dspPoll(){
+        // refresh sensor values from Sensors module
+        updateSensorFromSensorsModule();
+
+        // update master gain from sensor.speed
+        const targetMasterVolume = Math.min(0.8, sensor.speed * speedVolumeScaleFactor);
+        masterGain.gain.linearRampToValueAtTime(targetMasterVolume, audioCtx.currentTime + 0.1);
+
+        // per-voice updates
+        for (let i=0;i<8;i++){
+          const startFreq = baseFreq * V13_Ratios[i];
+          const endFreq = baseFreq * I_Ratios[i];
+          const targetFreq = (startFreq * sensor.closeness) + (endFreq * (1.0 - sensor.closeness));
+
+          // glide frequencies on both oscillators
+          try{
+            sineOsc[i].frequency.linearRampToValueAtTime(targetFreq, audioCtx.currentTime + 0.1);
+            squareOsc[i].frequency.linearRampToValueAtTime(targetFreq, audioCtx.currentTime + 0.1);
+          }catch(e){/* some browsers might not allow ramping immediately before start; ignore */}
+
+          // compute crossfade gains
+          const sineTargetVolume = voiceGains[i] * sensor.courseAlignment;
+          const squareTargetVolume = voiceGains[i] * (1.0 - sensor.courseAlignment);
+
+          sineGain[i].gain.linearRampToValueAtTime(sineTargetVolume, audioCtx.currentTime + 0.1);
+          squareGain[i].gain.linearRampToValueAtTime(squareTargetVolume, audioCtx.currentTime + 0.1);
+        }
+
+        hud.textContent = `Status: running — closeness=${sensor.closeness.toFixed(2)} speed=${sensor.speed.toFixed(2)} alignment=${sensor.courseAlignment.toFixed(2)}`;
+      }
+
+      // ----- Visualizer -----
+      let buffer = new Uint8Array(2048);
+      function renderLoop(){
+        rafId = requestAnimationFrame(renderLoop);
+        if (!analyser) return;
+        const size = analyser.fftSize || 2048;
+        if (buffer.length !== size) buffer = new Uint8Array(size);
+        analyser.getByteTimeDomainData(buffer);
+
+        // choose color
+        let stroke = '#3b82f6';
+        if (sensor.closeness === 0){ stroke = '#00ffcc'; }
+        else if (sensor.courseAlignment < 0.3){ stroke = '#ff4a5a'; }
+
+        // draw
+        const w = canvas.clientWidth; const h = canvas.clientHeight;
+        ctx.clearRect(0,0,w,h);
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = stroke;
+        ctx.beginPath();
+        const step = w / buffer.length;
+        for (let i=0;i<buffer.length;i++){
+          const v = buffer[i] / 128.0; // 0..2
+          const y = (v * 0.5) * h; // center
+          const x = i * step;
+          if (i===0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+
+      // ----- init button handler -----
+      btn.addEventListener('click', async function(){
+        btn.disabled = true;
+        hud.textContent = 'Status: requesting permissions...';
+
+        // start sensor module if available
+        try{ if (window.Sensors && !Sensors.running){ Sensors.start(); } }catch(e){ console.warn('Sensors.start failed', e); }
+
+        // Build audio graph and ensure context resumed
+        try{
+          buildAudioGraph();
+
+          // Some browsers need explicit resume
+          if (audioCtx && audioCtx.state === 'suspended'){
+            await audioCtx.resume();
+          }
+
+          // fade out the button
+          btn.classList.add('hidden');
+          setTimeout(()=>{ btn.style.display='none'; }, 700);
+
+          hud.textContent = 'Status: running — audio graph initialized';
+        }catch(err){
+          console.error('Failed to initialize audio graph', err);
+          hud.textContent = 'Status: failed to initialize audio: ' + (err && err.message ? err.message : String(err));
+          btn.disabled = false;
+        }
+      });
+
+      // cleanup on page unload
+      window.addEventListener('pagehide', ()=>{
+        if (sensorInterval) clearInterval(sensorInterval);
+        if (rafId) cancelAnimationFrame(rafId);
+        try{ if (audioCtx) audioCtx.close(); }catch(e){}
+      });
+
+    })();
+  </script>
+</body>
+</html>
