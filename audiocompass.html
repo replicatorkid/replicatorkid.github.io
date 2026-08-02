@@ -67,8 +67,8 @@
       window.audioCompassSensor = sensor; // debug access if needed
 
       // Target coordinate for "destination" (example: a nearby point). User may edit.
-      const TARGET = { lat: 43.76005377848191, lon: -87.98543085812142 };
-      const MAX_DISTANCE_METERS = 2000; // map distances >= this to closeness=1.0
+      const TARGET = { lat: 43.7382349, lon: -87.9765294 };
+      const MAX_DISTANCE_METERS = 1000; // map distances >= this to closeness=1.0
 
       // small helper: haversine meters
       function toRad(v){ return v * Math.PI / 180; }
@@ -204,7 +204,7 @@
 
           // Square track
           const qOsc = audioCtx.createOscillator();
-          qOsc.type = 'square';
+          qOsc.type = 'triangle';
           qOsc.frequency.setValueAtTime(startFreq, audioCtx.currentTime);
           const qGain = audioCtx.createGain();
           qGain.gain.setValueAtTime(0, audioCtx.currentTime);
