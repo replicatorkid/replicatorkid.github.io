@@ -75,7 +75,8 @@
 
       // Target coordinate for "destination" (example: a nearby point). User may edit.
       const TARGET = { lat: 43.7382349, lon: -87.9765294 };
-      const MAX_DISTANCE_METERS = 1000; // map distances >= this to closeness=1.0
+      const ChaosDistance = 3000; // map distances >= this to closeness=1.0
+      const V13Distance = 1000; //
 
       // small helper: haversine meters
       function toRad(v){ return v * Math.PI / 180; }
@@ -86,6 +87,10 @@
         const a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)*Math.sin(dLon/2);
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
         return R * c;
+      }
+      // small helper: randomInRange
+      function randomInRange(min, max) {
+        return Math.random() * (max - min) + min;
       }
 
       // compute bearing from (lat1,lon1) to (lat2,lon2) in degrees 0..360
@@ -106,7 +111,11 @@
             const speed = (Sensors.gps.speed != null) ? Sensors.gps.speed : 0; // m/s
 
             const dist = haversineMeters(lat, lon, TARGET.lat, TARGET.lon);
-            sensor.closeness = Math.min(1.0, dist / MAX_DISTANCE_METERS);
+            if (dist < V13Distance){
+              sensor.closeness = Math.pow(1 - Math.min(1.0, dist / V13Distance), 2);
+            }else{
+              sensor.closeness = 1 - Math.min(1.0, dist / ChaosDistance);
+            }
 
             // map speed to a small float (we leave it as m/s for scaling by speedVolumeScaleFactor later)
             sensor.speed = Math.max(0, speed);
@@ -155,6 +164,10 @@
 
       // ----- Audio graph setup -----
       const V13_Ratios = [0.75, 1.5, 3.0, 3.75, 5.25, 6.0, 9.0, 15.0];
+      const Chaos_Ratios = V13_Ratios.map((r, i) => {
+        const variance = 0.02 + (i * 0.015);
+        return r * (1 + randomInRange(-variance, variance));
+      });
       const I_Ratios   = [1.0,  2.0, 3.0, 4.0,  5.0,  6.0, 8.0, 16.0];
       const voiceGains = [0.25, 0.22, 0.18, 0.15, 0.12, 0.10, 0.08, 0.06];
 
@@ -252,9 +265,15 @@
 
         // per-voice updates
         for (let i=0;i<8;i++){
-          const startFreq = baseFreq * V13_Ratios[i];
+          const startFreq = baseFreq * Chaos_Ratios[i];
+          const midFreq = baseFreq * V13_Ratios[i];
           const endFreq = baseFreq * I_Ratios[i];
-          const targetFreq = (startFreq * sensor.closeness) + (endFreq * (1.0 - sensor.closeness));
+          let targetFreq;
+           if (dist < V13Distance){
+              targetFreq = (startFreq * (1 - sensor.closeness)) + (midFreq * sensor.closeness);
+            }else{
+              targetFreq = (midFreq * (1 - sensor.closeness)) + (endFreq * sensor.closeness);
+            }
 
           // glide frequencies on both oscillators
           try{
