@@ -111,6 +111,7 @@
             const speed = (Sensors.gps.speed != null) ? Sensors.gps.speed : 0; // m/s
 
             const dist = haversineMeters(lat, lon, TARGET.lat, TARGET.lon);
+            sensor.distance = dist;
             if (dist < V13Distance){
               sensor.closeness = Math.pow(1 - Math.min(1.0, dist / V13Distance), 2);
             }else{
@@ -160,6 +161,7 @@
         sensor.closeness = 1.0;
         sensor.speed = 0;
         sensor.courseAlignment = 0.5;
+        sensor.distance = Infinity;
       }
 
       // ----- Audio graph setup -----
@@ -258,6 +260,9 @@
       function dspPoll(){
         // refresh sensor values from Sensors module
         updateSensorFromSensorsModule();
+
+        // ensure we have a distance value to use
+        const dist = (sensor.distance != null) ? sensor.distance : Infinity;
 
         // update master gain from sensor.speed
         const targetMasterVolume = Math.min(0.8, sensor.speed * speedVolumeScaleFactor);
