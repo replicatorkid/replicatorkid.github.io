@@ -48,6 +48,13 @@
       const canvas = document.getElementById('vis');
       const ctx = canvas.getContext('2d');
 
+      // Hide HUD by default; reveal only when URL contains ?hud=1 or #hud
+      hud.style.display = 'none';
+      hud.setAttribute('aria-hidden', 'true');
+      function showHud(){ hud.style.display = 'block'; hud.removeAttribute('aria-hidden'); }
+      function hideHud(){ hud.style.display = 'none'; hud.setAttribute('aria-hidden', 'true'); }
+      if (location.search.includes('hud=1') || location.hash === '#hud') showHud();
+
       function resizeCanvas(){
         const dpr = window.devicePixelRatio || 1;
         const w = Math.max(1, window.innerWidth);
