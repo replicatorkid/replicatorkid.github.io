@@ -77,6 +77,12 @@
       const TARGET = { lat: 43.65915599207643, lon: -87.940456833201 };
       const ChaosDistance = 2000; // map distances >= this to closeness=1.0
       const V13Distance = 900; //
+      const CENTER = 100; // Radius of bullseye
+      const FIRST = 1000; // Outer radius of first ring
+      const SECOND = 2000; // Outer radius of second ring
+      const THIRD = 3000; // Outer radius of third ring
+      const FOURTH = 4000; // Outer radius of fourth ring
+      const OUTER = 5000; // Outer radius of the outer ring. No distance cue progress past this point.
 
       // small helper: haversine meters
       function toRad(v){ return v * Math.PI / 180; }
@@ -89,7 +95,7 @@
         return R * c;
       }
       // small helper: randomInRange
-      function randomInRange(min, max) {
+      function rir(min, max) {
         return Math.random() * (max - min) + min;
       }
 
@@ -112,10 +118,19 @@
 
             const dist = haversineMeters(lat, lon, TARGET.lat, TARGET.lon);
             sensor.distance = dist;
-            if (dist < V13Distance){
-              sensor.closeness = Math.pow(1 - Math.min(1.0, dist / V13Distance), 2);
+
+            if ( dist < FIRST ){
+              sensor.closeness = 1 - Math.min(1.0, ( dist - CENTER )/( FIRST - CENTER ));
+            }else if( dist < SECOND ){
+              sensor.closeness = 1 - Math.min(1.0, ( dist - FIRST)/( SECOND - FIRST ));
+            }else if ( dist < THIRD ){
+              sensor.closeness = 1 - Math.min(1.0, ( dist - SECOND)/( THIRD - SECOND ));
+            }else if (dist < FOURTH){
+              sensor.closeness = 1 - Math.min(1.0, ( dist - THIRD)/( FOURTH - THIRD ));
+            }else if (dist < FIFTH){
+              sensor.closeness = 1 - Math.min(1.0, ( dist - FOURTH)/( FIFTH - FOURTH ));
             }else{
-              sensor.closeness = 1 - Math.min(1.0, dist / ChaosDistance);
+              sensor.closeness = 0;
             }
 
             // map speed to a small float (we leave it as m/s for scaling by speedVolumeScaleFactor later)
@@ -165,13 +180,30 @@
       }
 
       // ----- Audio graph setup -----
-      const V13_Ratios = [0.75, 1.5, 3.0, 3.75, 5.25, 6.0, 9.0, 15.0];
-      const Chaos_Ratios = V13_Ratios.map((r, i) => {
-        const variance = 0.02 + (i * 0.015);
-        return r * (1 + randomInRange(-variance, variance));
-      });
-      const I_Ratios   = [1.0,  2.0, 3.0, 4.0,  5.0,  6.0, 8.0, 16.0];
       const voiceGains = [0.25, 0.22, 0.18, 0.15, 0.12, 0.10, 0.08, 0.06];
+      // Centre: Pure tonic spread over the harmonic series.
+      const Center_Ratios = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0, 16.0];
+      // 1st: Dominant tension (V13) begging to resolve.
+      const First_Ratios = [0.75, 1.5, 3.0, 3.75, 5.25, 6.0, 9.0, 15.0];
+      // 2nd: Rich, optimistic major sonority.
+      const Second_Ratios = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 10.0, 12.0];
+      // 3rd: Simple, hopeful major chord.
+      const Third_Ratios = [ 1.0, 2.0, 3.0, 4.0, 5.0, 8.0, 12.0, 16.0];
+      // 4th: Open fifths and octaves. Stable, but neither major nor minor.
+      const Fourth_Ratios = [1.0, 2.0, 3.0, 4.0, 6.0, 8.0, 12.0, 16.0];
+      // 5th: Beginning to emerge from chaos. Mostly clustered around the root with a hint of fifths.
+      const Fifth_Ratios = [1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5];
+      // Outside: THX-style pitch cloud. Every voice starts randomly somewhere within one octave.
+      const Outer_Ratios = [
+        rir(1.0, 2.0),
+        rir(1.0, 2.0),
+        rir(1.0, 2.0),
+        rir(1.0, 2.0),
+        rir(1.0, 2.0),
+        rir(1.0, 2.0),
+        rir(1.0, 2.0),
+        rir(1.0, 2.0)
+      ];
 
       const baseFreq = 30
 
@@ -210,7 +242,7 @@
 
         // create 8 sine and 8 square oscillators
         for (let i=0;i<8;i++){
-          const startFreq = baseFreq * V13_Ratios[i];
+          const startFreq = baseFreq * Outer_Ratios[i];
 
           // Sine track
           const sOsc = audioCtx.createOscillator();
@@ -270,15 +302,59 @@
 
         // per-voice updates
         for (let i=0;i<8;i++){
-          const startFreq = baseFreq * Chaos_Ratios[i];
-          const midFreq = baseFreq * V13_Ratios[i];
-          const endFreq = baseFreq * I_Ratios[i];
           let targetFreq;
-           if (dist < V13Distance){
-              targetFreq = (startFreq * (1 - sensor.closeness)) + (midFreq * sensor.closeness);
-            }else{
-              targetFreq = (midFreq * (1 - sensor.closeness)) + (endFreq * sensor.closeness);
-            }
+             if ( dist < FIRST ){
+               // Calculate needed frequencies.
+               const centerFreq = baseFreq * Center_Ratios[i];
+               const firstFreq = baseFreq * First_Ratios[i];
+               // Create a weighted average of those frequencies.
+               targetFreq = (centerFreq * sensor.closeness) + (firstFreq * ( 1 - sensor.closeness));
+            } else if (dist < SECOND) {
+
+        const nearFreq = baseFreq * First_Ratios[i];
+        const farFreq  = baseFreq * Second_Ratios[i];
+
+        targetFreq =
+            nearFreq * sensor.closeness +
+            farFreq * (1 - sensor.closeness);
+
+    } else if (dist < THIRD) {
+
+        const nearFreq = baseFreq * Second_Ratios[i];
+        const farFreq  = baseFreq * Third_Ratios[i];
+
+        targetFreq =
+            nearFreq * sensor.closeness +
+            farFreq * (1 - sensor.closeness);
+
+    } else if (dist < FOURTH) {
+
+        const nearFreq = baseFreq * Third_Ratios[i];
+        const farFreq  = baseFreq * Fourth_Ratios[i];
+
+        targetFreq =
+            nearFreq * sensor.closeness +
+            farFreq * (1 - sensor.closeness);
+
+    } else if (dist < FIFTH) {
+
+        const nearFreq = baseFreq * Fourth_Ratios[i];
+        const farFreq  = baseFreq * Fifth_Ratios[i];
+
+        targetFreq =
+            nearFreq * sensor.closeness +
+            farFreq * (1 - sensor.closeness);
+
+    } else {
+
+        const nearFreq = baseFreq * Fifth_Ratios[i];
+        const farFreq  = baseFreq * Outer_Ratios[i];
+
+        targetFreq =
+            nearFreq * sensor.closeness +
+            farFreq * (1 - sensor.closeness);
+
+    }
 
           // glide frequencies on both oscillators
           try{
