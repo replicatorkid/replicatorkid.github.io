@@ -75,13 +75,14 @@
 
       // Target coordinate for "destination" (example: a nearby point). User may edit.
       const TARGET = { lat: 43.65915599207643, lon: -87.940456833201 };
-      const ChaosDistance = 2000; // map distances >= this to closeness=1.0
-      const V13Distance = 900; //
+      const ChaosDistance = 2000; // map distances >= this to closeness=1.0 (unused but kept)
+      const V13Distance = 900; // (unused)
       const CENTER = 100; // Radius of bullseye
       const FIRST = 1000; // Outer radius of first ring
       const SECOND = 2000; // Outer radius of second ring
       const THIRD = 3000; // Outer radius of third ring
       const FOURTH = 4000; // Outer radius of fourth ring
+      const FIFTH = 5000; // Outer radius of fifth ring
       const OUTER = 5000; // Outer radius of the outer ring. No distance cue progress past this point.
 
       // small helper: haversine meters
@@ -98,6 +99,7 @@
       function rir(min, max) {
         return Math.random() * (max - min) + min;
       }
+      function clamp01(v){ return Math.max(0, Math.min(1, v)); }
 
       // compute bearing from (lat1,lon1) to (lat2,lon2) in degrees 0..360
       function bearingTo(lat1, lon1, lat2, lon2){
@@ -119,17 +121,17 @@
             const dist = haversineMeters(lat, lon, TARGET.lat, TARGET.lon);
             sensor.distance = dist;
 
-            if ( dist < FIRST ){
-              sensor.closeness = 1 - Math.min(1.0, ( dist - CENTER )/( FIRST - CENTER ));
-            }else if( dist < SECOND ){
-              sensor.closeness = 1 - Math.min(1.0, ( dist - FIRST)/( SECOND - FIRST ));
-            }else if ( dist < THIRD ){
-              sensor.closeness = 1 - Math.min(1.0, ( dist - SECOND)/( THIRD - SECOND ));
-            }else if (dist < FOURTH){
-              sensor.closeness = 1 - Math.min(1.0, ( dist - THIRD)/( FOURTH - THIRD ));
-            }else if (dist < FIFTH){
-              sensor.closeness = 1 - Math.min(1.0, ( dist - FOURTH)/( FIFTH - FOURTH ));
-            }else{
+            if (dist < FIRST){
+              sensor.closeness = clamp01(1 - Math.min(1.0, (dist - CENTER) / (FIRST - CENTER)));
+            } else if (dist < SECOND){
+              sensor.closeness = clamp01(1 - Math.min(1.0, (dist - FIRST) / (SECOND - FIRST)));
+            } else if (dist < THIRD){
+              sensor.closeness = clamp01(1 - Math.min(1.0, (dist - SECOND) / (THIRD - SECOND)));
+            } else if (dist < FOURTH){
+              sensor.closeness = clamp01(1 - Math.min(1.0, (dist - THIRD) / (FOURTH - THIRD)));
+            } else if (dist < FIFTH){
+              sensor.closeness = clamp01(1 - Math.min(1.0, (dist - FOURTH) / (FIFTH - FOURTH)));
+            } else {
               sensor.closeness = 0;
             }
 
@@ -160,8 +162,8 @@
               // no reliable heading; assume neutral alignment
               sensor.courseAlignment = 0.5;
             } else {
-              // delta between heading and bearingToTarget in radians
-              let delta = Math.abs(((heading - targetBearing + 540) % 360) - 180); // 0..180
+              // delta between heading and bearingToTarget in degrees (0..180)
+              let delta = Math.abs(((heading - targetBearing + 540) % 360) - 180);
               const deltaRad = delta * Math.PI/180;
               // map to [0,1] where 1 = aligned, 0 = opposite
               sensor.courseAlignment = Math.max(0, (1 + Math.cos(deltaRad)) / 2);
@@ -205,7 +207,7 @@
         rir(1.0, 2.0)
       ];
 
-      const baseFreq = 30
+      const baseFreq = 30;
 
       let audioCtx = null;
       let analyser = null;
@@ -257,7 +259,7 @@
           sineOsc[i] = sOsc;
           sineGain[i] = sGain;
 
-          // Square track
+          // Square/triangle track
           const qOsc = audioCtx.createOscillator();
           qOsc.type = 'triangle';
           qOsc.frequency.setValueAtTime(startFreq, audioCtx.currentTime);
@@ -276,7 +278,7 @@
         analyser.connect(audioCtx.destination);
 
         // start all oscillators "simultaneously"
-        const startAt = 0; // start immediately from now
+        const startAt = audioCtx.currentTime;
         for (let i=0;i<8;i++){
           sineOsc[i].start(startAt);
           squareOsc[i].start(startAt);
@@ -303,58 +305,32 @@
         // per-voice updates
         for (let i=0;i<8;i++){
           let targetFreq;
-             if ( dist < FIRST ){
-               // Calculate needed frequencies.
-               const centerFreq = baseFreq * Center_Ratios[i];
-               const firstFreq = baseFreq * First_Ratios[i];
-               // Create a weighted average of those frequencies.
-               targetFreq = (centerFreq * sensor.closeness) + (firstFreq * ( 1 - sensor.closeness));
-            } else if (dist < SECOND) {
-
-        const nearFreq = baseFreq * First_Ratios[i];
-        const farFreq  = baseFreq * Second_Ratios[i];
-
-        targetFreq =
-            nearFreq * sensor.closeness +
-            farFreq * (1 - sensor.closeness);
-
-    } else if (dist < THIRD) {
-
-        const nearFreq = baseFreq * Second_Ratios[i];
-        const farFreq  = baseFreq * Third_Ratios[i];
-
-        targetFreq =
-            nearFreq * sensor.closeness +
-            farFreq * (1 - sensor.closeness);
-
-    } else if (dist < FOURTH) {
-
-        const nearFreq = baseFreq * Third_Ratios[i];
-        const farFreq  = baseFreq * Fourth_Ratios[i];
-
-        targetFreq =
-            nearFreq * sensor.closeness +
-            farFreq * (1 - sensor.closeness);
-
-    } else if (dist < FIFTH) {
-
-        const nearFreq = baseFreq * Fourth_Ratios[i];
-        const farFreq  = baseFreq * Fifth_Ratios[i];
-
-        targetFreq =
-            nearFreq * sensor.closeness +
-            farFreq * (1 - sensor.closeness);
-
-    } else {
-
-        const nearFreq = baseFreq * Fifth_Ratios[i];
-        const farFreq  = baseFreq * Outer_Ratios[i];
-
-        targetFreq =
-            nearFreq * sensor.closeness +
-            farFreq * (1 - sensor.closeness);
-
-    }
+          if (dist < FIRST){
+            const centerFreq = baseFreq * Center_Ratios[i];
+            const firstFreq = baseFreq * First_Ratios[i];
+            // Create a weighted average of those frequencies.
+            targetFreq = (centerFreq * sensor.closeness) + (firstFreq * (1 - sensor.closeness));
+          } else if (dist < SECOND) {
+            const nearFreq = baseFreq * First_Ratios[i];
+            const farFreq  = baseFreq * Second_Ratios[i];
+            targetFreq = nearFreq * sensor.closeness + farFreq * (1 - sensor.closeness);
+          } else if (dist < THIRD) {
+            const nearFreq = baseFreq * Second_Ratios[i];
+            const farFreq  = baseFreq * Third_Ratios[i];
+            targetFreq = nearFreq * sensor.closeness + farFreq * (1 - sensor.closeness);
+          } else if (dist < FOURTH) {
+            const nearFreq = baseFreq * Third_Ratios[i];
+            const farFreq  = baseFreq * Fourth_Ratios[i];
+            targetFreq = nearFreq * sensor.closeness + farFreq * (1 - sensor.closeness);
+          } else if (dist < FIFTH) {
+            const nearFreq = baseFreq * Fourth_Ratios[i];
+            const farFreq  = baseFreq * Fifth_Ratios[i];
+            targetFreq = nearFreq * sensor.closeness + farFreq * (1 - sensor.closeness);
+          } else {
+            const nearFreq = baseFreq * Fifth_Ratios[i];
+            const farFreq  = baseFreq * Outer_Ratios[i];
+            targetFreq = nearFreq * sensor.closeness + farFreq * (1 - sensor.closeness);
+          }
 
           // glide frequencies on both oscillators
           try{
@@ -396,7 +372,7 @@
         const step = w / buffer.length;
         for (let i=0;i<buffer.length;i++){
           const v = buffer[i] / 128.0; // 0..2
-          const y = (v * 0.5) * h; // center
+          const y = (v * 0.5) * h;
           const x = i * step;
           if (i===0) ctx.moveTo(x, y);
           else ctx.lineTo(x, y);
