@@ -70,11 +70,11 @@
       const sensor = { closeness: 1.0, speed: 0.0, courseAlignment: 0.5, distance: Infinity };
       window.audioCompassSensor = sensor; // debug access if needed
 
-      //const TARGET = { lat: 43.65915599207643, lon: -87.940456833201 }; //Work
+      const TARGET = { lat: 43.65915599207643, lon: -87.940456833201 }; //Work
       //const TARGET = { lat: 43.74988703628948, lon: -87.98474163922693 }; //Home
       //const TARGET = { lat: 43.76002617170988, lon: -87.98538775415024 }; //Church
       //const TARGET = { lat: 43.73334062468951, lon: -88.02644395782748 }; //Kamrath
-       const TARGET = { lat: 43.7467722, lon: -87.9553970 }; //McDonalds
+      //const TARGET = { lat: 43.7467722, lon: -87.9553970 }; //McDonalds
       
       const CENTER = 200;
       const FIRST = 1000;
@@ -165,13 +165,13 @@
       }
 
       // ----- Audio graph setup (unchanged behavior) -----
-      const Center_Ratios  = [3.41, 3.82, 4.19, 4.53, 5.07, 5.61, 6.13, 6.54];
-      const First_Ratios = [4.00, 4.02, 5.00, 5.11, 6.00, 6.27, 8.00, 8.43]; 
-      const Second_Ratios  = [4.00, 4.01, 4.80, 4.82, 6.00, 7.20, 7.23, 8.00];
+      const Outer_Ratios  = [3.41, 3.82, 4.19, 4.53, 5.07, 5.61, 6.13, 6.54];
+      const Fifth_Ratios = [4.00, 4.02, 5.00, 5.11, 6.00, 6.27, 8.00, 8.43]; 
+      const Fourth_Ratios  = [4.00, 4.01, 4.80, 4.82, 6.00, 7.20, 7.23, 8.00];
       const Third_Ratios = [4.00, 4.01, 5.00, 5.02, 6.00, 7.50, 7.52, 8.00];
-      const Fourth_Ratios  = [4.50, 5.33, 6.00, 6.75, 8.00, 9.00, 10.66, 12.00];
-      const Fifth_Ratios  = [11.85, 11.90, 11.95, 12.00, 12.05, 12.10, 12.15, 12.20];
-      const Outer_Ratios = [1.00, 2.00, 3.00, 4.00, 6.00, 8.00, 12.00, 16.00];
+      const Second_Ratios  = [4.50, 5.33, 6.00, 6.75, 8.00, 9.00, 10.66, 12.00];
+      const First_Ratios  = [11.85, 11.90, 11.95, 12.00, 12.05, 12.10, 12.15, 12.20];
+      const Center_Ratios = [1.00, 2.00, 3.00, 4.00, 6.00, 8.00, 12.00, 16.00];
       
       const voiceGains = [0.25, 0.22, 0.18, 0.15, 0.12, 0.10, 0.08, 0.06];
       const baseFreq = 30;
