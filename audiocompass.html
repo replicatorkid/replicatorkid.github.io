@@ -160,15 +160,15 @@
       }
 
       // ----- Audio graph setup (unchanged behavior) -----
+      const Center_Ratios  = [3.41, 3.82, 4.19, 4.53, 5.07, 5.61, 6.13, 6.54];
+      const First_Ratios = [4.00, 4.02, 5.00, 5.11, 6.00, 6.27, 8.00, 8.43]; 
+      const Second_Ratios  = [4.00, 4.01, 4.80, 4.82, 6.00, 7.20, 7.23, 8.00];
+      const Third_Ratios = [4.00, 4.01, 5.00, 5.02, 6.00, 7.50, 7.52, 8.00];
+      const Fourth_Ratios  = [4.50, 5.33, 6.00, 6.75, 8.00, 9.00, 10.66, 12.00];
+      const Fifth_Ratios  = [11.85, 11.90, 11.95, 12.00, 12.05, 12.10, 12.15, 12.20];
+      const Outer_Ratios = [1.00, 2.00, 3.00, 4.00, 6.00, 8.00, 12.00, 16.00];
+      
       const voiceGains = [0.25, 0.22, 0.18, 0.15, 0.12, 0.10, 0.08, 0.06];
-      const Center_Ratios = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0, 16.0];
-      const First_Ratios = [0.75, 1.5, 3.0, 3.75, 5.25, 6.0, 9.0, 15.0];
-      const Second_Ratios = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 10.0, 12.0];
-      const Third_Ratios = [ 1.0, 2.0, 3.0, 4.0, 5.0, 8.0, 12.0, 16.0];
-      const Fourth_Ratios = [1.0, 2.0, 3.0, 4.0, 6.0, 8.0, 12.0, 16.0];
-      const Fifth_Ratios = [1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5];
-      function rir(min, max){ return Math.random() * (max - min) + min; }
-      const Outer_Ratios = [ rir(1.0, 2.0), rir(1.0, 2.0), rir(1.0, 2.0), rir(1.0, 2.0), rir(1.0, 2.0), rir(1.0, 2.0), rir(1.0, 2.0), rir(1.0, 2.0) ];
       const baseFreq = 30;
 
       let audioCtx = null;
