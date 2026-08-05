@@ -5,26 +5,24 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Audio Compass — Real-Time Audio+Sensors</title>
   <style>
-    :root{color-scheme: dark}
-    html,body{height:100%;margin:0;background:#0b0f19;font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial}
+    :root{color-scheme: light}
+    html,body{height:100%;margin:0;background:#fff;color:#000;font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial}
     .stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
-    canvas#vis{position:absolute;inset:0;width:100%;height:100%;display:block}
+    canvas#vis{position:absolute;inset:0;width:100%;height:100%;display:block;background:#fff}
 
-    /* central init button */
+    /* central simple start button */
     .init-wrap{position:relative;z-index:10;display:flex;align-items:center;justify-content:center;pointer-events:auto}
     .init-btn{
-      background:linear-gradient(180deg,#101426 0%,#0f1724 100%);
-      color:#e6eef8;border:1px solid rgba(255,255,255,0.06);
-      padding:20px 28px;border-radius:14px;font-size:20px;font-weight:600;cursor:pointer;
-      box-shadow:0 6px 30px rgba(2,6,23,0.6), inset 0 -6px 20px rgba(255,255,255,0.02);
-      transition:opacity 600ms ease,transform 400ms cubic-bezier(.2,.9,.25,1),filter 200ms;
-      backdrop-filter: blur(6px);
+      background:#fff;color:#000;border:1px solid #000;
+      padding:12px 18px;border-radius:6px;font-size:18px;font-weight:600;cursor:pointer;
+      transition:opacity 300ms ease,transform 200ms ease;
+      -webkit-appearance:none;appearance:none
     }
-    .init-btn:active{transform:translateY(1px) scale(.995)}
-    .init-btn.hidden{opacity:0;transform:scale(.96);pointer-events:none}
+    .init-btn:active{transform:translateY(1px)}
+    .init-btn.hidden{opacity:0;transform:scale(.98);pointer-events:none}
 
-    /* small HUD info */
-    .hud{position:fixed;left:14px;bottom:14px;padding:8px 12px;border-radius:10px;background:rgba(255,255,255,0.03);color:#9fb3ff;font-size:13px;border:1px solid rgba(255,255,255,0.03)}
+    /* small HUD info (hidden by default) */
+    .hud{position:fixed;left:14px;bottom:14px;padding:8px 12px;border-radius:6px;background:#fff;color:#000;font-size:13px;border:1px solid #000}
   </style>
 </head>
 <body>
@@ -32,7 +30,7 @@
     <canvas id="vis" aria-hidden="true"></canvas>
 
     <div class="init-wrap">
-      <button id="init" class="init-btn">Initialize Audio System</button>
+      <button id="init" class="init-btn">Start</button>
     </div>
 
     <div id="hud" class="hud">Status: idle</div>
@@ -40,7 +38,7 @@
 
   <script src="sensor.js"></script>
   <script>
-    // Audio Compass page implementing the Target Specification
+    // Audio Compass — simplified black & white, stationary waveform, HUD shows distance
     (function(){
       // ----- DOM + canvas setup -----
       const btn = document.getElementById('init');
@@ -69,22 +67,17 @@
       resizeCanvas();
 
       // ----- Sensor wrapper approximate mapping -----
-      // We expose a `sensor` object with the three floats required by the spec.
-      const sensor = { closeness: 1.0, speed: 0.0, courseAlignment: 0.5 };
+      const sensor = { closeness: 1.0, speed: 0.0, courseAlignment: 0.5, distance: Infinity };
       window.audioCompassSensor = sensor; // debug access if needed
 
-      // Target coordinate for "destination" (example: a nearby point). User may edit.
       const TARGET = { lat: 43.65915599207643, lon: -87.940456833201 };
-      const ChaosDistance = 2000; // map distances >= this to closeness=1.0 (unused but kept)
-      const V13Distance = 900; // (unused)
-      const CENTER = 100; // Radius of bullseye
-      const FIRST = 1000; // Outer radius of first ring
-      const SECOND = 2000; // Outer radius of second ring
-      const THIRD = 3000; // Outer radius of third ring
-      const FOURTH = 4000; // Outer radius of fourth ring
-      const FIFTH = 5000; // Outer radius of fifth ring. No distance cue progress past this point.
+      const CENTER = 100;
+      const FIRST = 1000;
+      const SECOND = 2000;
+      const THIRD = 3000;
+      const FOURTH = 4000;
+      const FIFTH = 5000;
 
-      // small helper: haversine meters
       function toRad(v){ return v * Math.PI / 180; }
       function haversineMeters(lat1, lon1, lat2, lon2){
         const R = 6371000;
@@ -94,13 +87,7 @@
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
         return R * c;
       }
-      // small helper: randomInRange
-      function rir(min, max) {
-        return Math.random() * (max - min) + min;
-      }
       function clamp01(v){ return Math.max(0, Math.min(1, v)); }
-
-      // compute bearing from (lat1,lon1) to (lat2,lon2) in degrees 0..360
       function bearingTo(lat1, lon1, lat2, lon2){
         const y = Math.sin(toRad(lon2-lon1)) * Math.cos(toRad(lat2));
         const x = Math.cos(toRad(lat1))*Math.sin(toRad(lat2)) - Math.sin(toRad(lat1))*Math.cos(toRad(lat2))*Math.cos(toRad(lon2-lon1));
@@ -108,14 +95,13 @@
         return brng;
       }
 
-      // sensor updater: reads from global Sensors if available, else uses defaults
       let lastPos = null;
       function updateSensorFromSensorsModule(){
         try{
           if (window.Sensors && Sensors.gps && Sensors.gps.lat != null){
             const lat = Sensors.gps.lat;
             const lon = Sensors.gps.lon;
-            const speed = (Sensors.gps.speed != null) ? Sensors.gps.speed : 0; // m/s
+            const speed = (Sensors.gps.speed != null) ? Sensors.gps.speed : 0;
 
             const dist = haversineMeters(lat, lon, TARGET.lat, TARGET.lon);
             sensor.distance = dist;
@@ -134,19 +120,16 @@
               sensor.closeness = 0;
             }
 
-            // map speed to a small float (we leave it as m/s for scaling by speedVolumeScaleFactor later)
             sensor.speed = Math.max(0, speed);
 
-            // compute heading: prefer orientation.heading if available
             let heading = null;
             if (Sensors.orientation && Sensors.orientation.heading != null){
-              heading = Sensors.orientation.heading; // 0..360
+              heading = Sensors.orientation.heading;
             } else if (Sensors.gps && Sensors.gps.heading != null){
-              heading = Sensors.gps.heading; // may be null
+              heading = Sensors.gps.heading;
             }
 
             if (heading == null){
-              // if no heading, guess from last position
               if (lastPos){
                 const eps = 1e-6;
                 if (Math.abs(lastPos.lat - lat) > eps || Math.abs(lastPos.lon - lon) > eps){
@@ -155,16 +138,12 @@
               }
             }
 
-            // bearing to target
             const targetBearing = bearingTo(lat, lon, TARGET.lat, TARGET.lon);
             if (heading == null){
-              // no reliable heading; assume neutral alignment
               sensor.courseAlignment = 0.5;
             } else {
-              // delta between heading and bearingToTarget in degrees (0..180)
               let delta = Math.abs(((heading - targetBearing + 540) % 360) - 180);
               const deltaRad = delta * Math.PI/180;
-              // map to [0,1] where 1 = aligned, 0 = opposite
               sensor.courseAlignment = Math.max(0, (1 + Math.cos(deltaRad)) / 2);
             }
 
@@ -180,32 +159,16 @@
         sensor.distance = Infinity;
       }
 
-      // ----- Audio graph setup -----
+      // ----- Audio graph setup (unchanged behavior) -----
       const voiceGains = [0.25, 0.22, 0.18, 0.15, 0.12, 0.10, 0.08, 0.06];
-      // Centre: Pure tonic spread over the harmonic series.
       const Center_Ratios = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0, 16.0];
-      // 1st: Dominant tension (V13) begging to resolve.
       const First_Ratios = [0.75, 1.5, 3.0, 3.75, 5.25, 6.0, 9.0, 15.0];
-      // 2nd: Rich, optimistic major sonority.
       const Second_Ratios = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 10.0, 12.0];
-      // 3rd: Simple, hopeful major chord.
       const Third_Ratios = [ 1.0, 2.0, 3.0, 4.0, 5.0, 8.0, 12.0, 16.0];
-      // 4th: Open fifths and octaves. Stable, but neither major nor minor.
       const Fourth_Ratios = [1.0, 2.0, 3.0, 4.0, 6.0, 8.0, 12.0, 16.0];
-      // 5th: Beginning to emerge from chaos. Mostly clustered around the root with a hint of fifths.
       const Fifth_Ratios = [1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5];
-      // Outside: THX-style pitch cloud. Every voice starts randomly somewhere within one octave.
-      const Outer_Ratios = [
-        rir(1.0, 2.0),
-        rir(1.0, 2.0),
-        rir(1.0, 2.0),
-        rir(1.0, 2.0),
-        rir(1.0, 2.0),
-        rir(1.0, 2.0),
-        rir(1.0, 2.0),
-        rir(1.0, 2.0)
-      ];
-
+      function rir(min, max){ return Math.random() * (max - min) + min; }
+      const Outer_Ratios = [ rir(1.0, 2.0), rir(1.0, 2.0), rir(1.0, 2.0), rir(1.0, 2.0), rir(1.0, 2.0), rir(1.0, 2.0), rir(1.0, 2.0), rir(1.0, 2.0) ];
       const baseFreq = 30;
 
       let audioCtx = null;
@@ -217,22 +180,16 @@
       const sineGain = new Array(8);
       const squareGain = new Array(8);
 
-      // intervals / raf handles
       let sensorInterval = null;
       let rafId = null;
 
-      // volume scaling factor used for master mapping (adjustable)
-      const speedVolumeScaleFactor = 0.06; // tweak to keep master <= 0.8 for reasonable speeds
+      const speedVolumeScaleFactor = 0.06;
 
       function buildAudioGraph(){
         const AC = window.AudioContext || window.webkitAudioContext;
         if (!AC) throw new Error('Web Audio API not supported');
         audioCtx = new AC();
-
-        // Resume if suspended (autoplay policies)
-        if (audioCtx.state === 'suspended'){
-          audioCtx.resume().catch(()=>{});
-        }
+        if (audioCtx.state === 'suspended'){ audioCtx.resume().catch(()=>{}); }
 
         analyser = audioCtx.createAnalyser();
         analyser.fftSize = 2048;
@@ -241,73 +198,53 @@
         masterGain = audioCtx.createGain();
         masterGain.gain.setValueAtTime(0, audioCtx.currentTime);
 
-        // create 8 sine and 8 square oscillators
         for (let i=0;i<8;i++){
           const startFreq = baseFreq * Outer_Ratios[i];
-
-          // Sine track
           const sOsc = audioCtx.createOscillator();
           sOsc.type = 'sine';
           sOsc.frequency.setValueAtTime(startFreq, audioCtx.currentTime);
           const sGain = audioCtx.createGain();
           sGain.gain.setValueAtTime(0, audioCtx.currentTime);
           sOsc.connect(sGain);
-          // connect to masterGain so analyser (placed after masterGain) reflects final volume
           sGain.connect(masterGain);
+          sineOsc[i] = sOsc; sineGain[i] = sGain;
 
-          sineOsc[i] = sOsc;
-          sineGain[i] = sGain;
-
-          // Square/triangle track
           const qOsc = audioCtx.createOscillator();
           qOsc.type = 'triangle';
           qOsc.frequency.setValueAtTime(startFreq, audioCtx.currentTime);
           const qGain = audioCtx.createGain();
           qGain.gain.setValueAtTime(0, audioCtx.currentTime);
           qOsc.connect(qGain);
-          // connect to masterGain so analyser (placed after masterGain) reflects final volume
           qGain.connect(masterGain);
-
-          squareOsc[i] = qOsc;
-          squareGain[i] = qGain;
+          squareOsc[i] = qOsc; squareGain[i] = qGain;
         }
 
-        // connect master -> analyser -> destination so analyser sees post-master level
         masterGain.connect(analyser);
         analyser.connect(audioCtx.destination);
 
-        // start all oscillators "simultaneously"
         const startAt = audioCtx.currentTime;
         for (let i=0;i<8;i++){
           sineOsc[i].start(startAt);
           squareOsc[i].start(startAt);
         }
 
-        // set up sensor polling + dsp mapping
         sensorInterval = setInterval(dspPoll, 100);
-
-        // start visualizer
         renderLoop();
       }
 
       function dspPoll(){
-        // refresh sensor values from Sensors module
         updateSensorFromSensorsModule();
 
-        // ensure we have a distance value to use
-        const dist = (sensor.distance != null) ? sensor.distance : Infinity;
+        const dist = (sensor.distance != null && isFinite(sensor.distance)) ? sensor.distance : Infinity;
 
-        // update master gain from sensor.speed
         const targetMasterVolume = Math.min(0.8, sensor.speed * speedVolumeScaleFactor);
         masterGain.gain.linearRampToValueAtTime(targetMasterVolume, audioCtx.currentTime + 0.1);
 
-        // per-voice updates
         for (let i=0;i<8;i++){
           let targetFreq;
           if (dist < FIRST){
             const centerFreq = baseFreq * Center_Ratios[i];
             const firstFreq = baseFreq * First_Ratios[i];
-            // Create a weighted average of those frequencies.
             targetFreq = (centerFreq * sensor.closeness) + (firstFreq * (1 - sensor.closeness));
           } else if (dist < SECOND) {
             const nearFreq = baseFreq * First_Ratios[i];
@@ -331,13 +268,11 @@
             targetFreq = nearFreq * sensor.closeness + farFreq * (1 - sensor.closeness);
           }
 
-          // glide frequencies on both oscillators
           try{
             sineOsc[i].frequency.linearRampToValueAtTime(targetFreq, audioCtx.currentTime + 0.1);
             squareOsc[i].frequency.linearRampToValueAtTime(targetFreq, audioCtx.currentTime + 0.1);
-          }catch(e){/* some browsers might not allow ramping immediately before start; ignore */}
+          }catch(e){}
 
-          // compute crossfade gains
           const sineTargetVolume = voiceGains[i] * sensor.courseAlignment;
           const squareTargetVolume = voiceGains[i] * (1.0 - sensor.courseAlignment);
 
@@ -345,33 +280,45 @@
           squareGain[i].gain.linearRampToValueAtTime(squareTargetVolume, audioCtx.currentTime + 0.1);
         }
 
-        hud.textContent = `Status: running — closeness=${sensor.closeness.toFixed(2)} speed=${sensor.speed.toFixed(2)} alignment=${sensor.courseAlignment.toFixed(2)}`;
+        // update HUD (if visible) with distance in meters
+        if (hud.style.display !== 'none'){
+          const distLabel = (sensor.distance != null && isFinite(sensor.distance)) ? `${sensor.distance.toFixed(1)} m` : '—';
+          hud.textContent = `Distance: ${distLabel}`;
+        }
       }
 
-      // ----- Visualizer -----
+      // ----- Visualizer (stationary waveform smoothing) -----
       let buffer = new Uint8Array(2048);
+      let displayBuffer = null;
       function renderLoop(){
         rafId = requestAnimationFrame(renderLoop);
         if (!analyser) return;
         const size = analyser.fftSize || 2048;
         if (buffer.length !== size) buffer = new Uint8Array(size);
+        if (!displayBuffer || displayBuffer.length !== size) displayBuffer = new Float32Array(size);
+
         analyser.getByteTimeDomainData(buffer);
 
-        // choose color
-        let stroke = '#3b82f6';
-        if (sensor.closeness === 0){ stroke = '#00ffcc'; }
-        else if (sensor.courseAlignment < 0.3){ stroke = '#ff4a5a'; }
+        // blend new data into displayBuffer slowly so waveform appears more stationary
+        const blend = 0.06; // small blend -> more stationary
+        for (let i=0;i<size;i++){
+          const v = (buffer[i] - 128) / 128; // -1..1
+          displayBuffer[i] = displayBuffer[i] * (1 - blend) + v * blend;
+        }
 
         // draw
         const w = canvas.clientWidth; const h = canvas.clientHeight;
-        ctx.clearRect(0,0,w,h);
+        // clear to white
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0,0,w,h);
+
         ctx.lineWidth = 2;
-        ctx.strokeStyle = stroke;
+        ctx.strokeStyle = '#000';
         ctx.beginPath();
-        const step = w / buffer.length;
-        for (let i=0;i<buffer.length;i++){
-          const v = buffer[i] / 128.0; // 0..2
-          const y = (v * 0.5) * h;
+        const step = w / displayBuffer.length;
+        for (let i=0;i<displayBuffer.length;i++){
+          const v = displayBuffer[i]; // -1..1
+          const y = (1 - (v * 0.5 + 0.5)) * h; // map -1..1 to 0..h (invert for visual)
           const x = i * step;
           if (i===0) ctx.moveTo(x, y);
           else ctx.lineTo(x, y);
@@ -382,7 +329,6 @@
       // ----- init button handler -----
       btn.addEventListener('click', async function(){
         btn.disabled = true;
-        hud.textContent = 'Status: requesting permissions...';
 
         // start sensor module if available
         try{ if (window.Sensors && !Sensors.running){ Sensors.start(); } }catch(e){ console.warn('Sensors.start failed', e); }
@@ -391,19 +337,16 @@
         try{
           buildAudioGraph();
 
-          // Some browsers need explicit resume
           if (audioCtx && audioCtx.state === 'suspended'){
             await audioCtx.resume();
           }
 
           // fade out the button
           btn.classList.add('hidden');
-          setTimeout(()=>{ btn.style.display='none'; }, 700);
+          setTimeout(()=>{ btn.style.display='none'; }, 350);
 
-          hud.textContent = 'Status: running — audio graph initialized';
         }catch(err){
           console.error('Failed to initialize audio graph', err);
-          hud.textContent = 'Status: failed to initialize audio: ' + (err && err.message ? err.message : String(err));
           btn.disabled = false;
         }
       });
