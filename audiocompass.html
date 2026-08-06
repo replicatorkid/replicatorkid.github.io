@@ -225,17 +225,18 @@
       // --- Test mode: spacebar-driven spoofing of distance ---
       let testMode = false;
       let testStartAt = 0; // seconds (performance.now()/1000)
-      const testSpeed = 50; // m/s (decrease rate)
+      let testStartDistance = 9000; // start the test out beyond OUTER so you hear the shimmer
       const TEST_SPEED = 45 * 1609.344 / 3600; // ~20.1168 m/s
 
-      function startDistanceTest(){
+      function startDistanceTest(startDist = testStartDistance){
         testMode = true;
         testStartAt = performance.now() / 1000;
-        sensor.distance = 7000;
+        testStartDistance = startDist;
+        sensor.distance = testStartDistance;
         sensor.closeness = computeClosenessFromDistance(sensor.distance);
         sensor.speed = TEST_SPEED; // spoof 45 mph in m/s so audio has volume
         sensor.courseAlignment = 0.75;
-        console.log('audioCompass: distance test started');
+        console.log('audioCompass: distance test started at', testStartDistance);
       }
       function stopDistanceTest(){
         testMode = false;
@@ -311,7 +312,7 @@
         if (testMode){
           const now = performance.now() / 1000;
           const elapsed = Math.max(0, now - testStartAt);
-          const newDist = Math.max(0, OUTER - elapsed * testSpeed);
+          const newDist = Math.max(0, testStartDistance - elapsed * TEST_SPEED);
           sensor.distance = newDist;
           sensor.closeness = computeClosenessFromDistance(newDist);
           sensor.speed = TEST_SPEED; // spoof speed so audio plays
