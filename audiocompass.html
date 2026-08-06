@@ -101,6 +101,12 @@
         return brng;
       }
 
+      // Helper function
+      function rir(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+      }
+
+
       let lastPos = null;
       function updateSensorFromSensorsModule(){
         try{
@@ -168,7 +174,7 @@
       }
 
       // ----- Audio graph setup (unchanged behavior) -----
-      const Outer_Ratios  = [3.41, 3.82, 4.19, 4.53, 5.07, 5.61, 6.13, 6.54];
+      let Outer_Ratios  = [3.36, 3.67, 4.08, 4.27, 4.91, 5.43, 6.02, 6.61];
       const Fifth_Ratios = [4.00, 4.02, 5.00, 5.11, 6.00, 6.27, 8.00, 8.43]; 
       const Fourth_Ratios  = [4.00, 4.01, 4.80, 4.82, 6.00, 7.20, 7.23, 8.00];
       const Third_Ratios = [4.00, 4.01, 5.00, 5.02, 6.00, 7.50, 7.52, 8.00];
@@ -218,7 +224,7 @@
           sineOsc[i] = sOsc; sineGain[i] = sGain;
 
           const qOsc = audioCtx.createOscillator();
-          qOsc.type = 'triangle';
+          qOsc.type = 'square';
           qOsc.frequency.setValueAtTime(startFreq, audioCtx.currentTime);
           const qGain = audioCtx.createGain();
           qGain.gain.setValueAtTime(0, audioCtx.currentTime);
@@ -275,6 +281,10 @@
             const farFreq  = baseFreq * Outer_Ratios[i];
             targetFreq = nearFreq * sensor.closeness + farFreq * (1 - sensor.closeness);
           } else {
+            for (let x=0;x<8;x++){
+              // Change each frequency by a small amount
+              Outer_Ratios[x] = Outer_Ratios[x]*rir(-0.005,0.005);
+            }
             targetFreq = baseFreq * Outer_Ratios[i];
           }
 
