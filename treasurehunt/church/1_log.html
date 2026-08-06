@@ -10,10 +10,13 @@
         margin: 0;
         min-height: 100vh;
         display: flex;
+        flex-direction: column; /* stack vertically so hint is above the column */
         justify-content: center;
         align-items: center;
         background: white;
         font-family: Arial, sans-serif;
+        gap: 24px; /* vertical spacing between hint and column */
+        padding: 20px;
     }
 
     #wordColumn {
@@ -21,17 +24,29 @@
         flex-direction: column;
         align-items: center;
         gap: 30px; /* Vertical spacing between lines */
+        width: 100%;
+        max-width: 900px; /* keep lines readable on large screens */
     }
 
     .word {
-        font-size: 24px;
+        font-size: clamp(18px, 4vw, 24px); /* responsive font size */
         text-align: center;
+        /* allow very long, unbroken strings to wrap on small screens */
+        word-break: break-word;
+        overflow-wrap: anywhere;
+        max-width: 100%;
+    }
+
+    /* keep the hint visually distinct if needed */
+    #unscrambled-hint {
+        line-height: 1.1;
+        max-width: 100%;
     }
 </style>
 </head>
 <body>
 
-<div class="word" id="unscrambled-hint" style="line-height:1.1;">
+<div class="word" id="unscrambled-hint">
   If only this page came with
   <span style="font-weight:700; margin-left:6px;">directions</span>
   <span aria-hidden="true" style="display:inline-block; margin-left:10px; font-size:0.90em; opacity:0.95;">directions . . .</span>
