@@ -226,12 +226,12 @@
       let testMode = false;
       let testStartAt = 0; // seconds (performance.now()/1000)
       const testSpeed = 50; // m/s (decrease rate)
-      const TEST_SPEED = 60 * 1609.344 / 3600; // ~20.1168 m/s
+      const TEST_SPEED = 45 * 1609.344 / 3600; // ~20.1168 m/s
 
       function startDistanceTest(){
         testMode = true;
         testStartAt = performance.now() / 1000;
-        sensor.distance = OUTER + 2000;
+        sensor.distance = 7000;
         sensor.closeness = computeClosenessFromDistance(sensor.distance);
         sensor.speed = TEST_SPEED; // spoof 45 mph in m/s so audio has volume
         sensor.courseAlignment = 0.75;
