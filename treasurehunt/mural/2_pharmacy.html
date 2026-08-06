@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Distance</title>
+
+<style>
+
+html, body{
+    margin:0;
+    width:100%;
+    height:100%;
+    overflow:hidden;
+    background:white;
+    font-family:'Courier New', Consolas, "Courier", monospace;
+}
+
+#start{
+    position:absolute;
+    left:50%;
+    top:50%;
+    transform:translate(-50%,-50%);
+    font-size:1.25rem;
+    padding:0.6rem 1.2rem;
+    cursor:pointer;
+}
+
+/* Container fills the viewport and centers the readout */
+#container{
+    display:none;
+    position:fixed;
+    inset:0;
+    align-items:center;
+    justify-content:center;
+    background:white;
+}
+
+/* Plain, sharp, black numerals centered on screen. No box or units. */
+#display{
+    background:transparent;
+    border:none;
+    border-radius:0;
+    padding:0;
+    margin:0;
+    color:black;
+    font-family:'Courier New', Consolas, "Courier", monospace;
+    font-weight:700;
+    line-height:1;
+    text-align:center;
+    /* scale the font to the viewport but cap it for very large screens */
+    font-size:clamp(40px, 18vw, 160px);
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+}
+
+</style>
+</head>
+
+<body>
+
+<button id="start">START</button>
+
+<div id="container">
+    <div id="display">------</div>
+</div>
+
+<script>
+
+//======================================================
+// Destination
+//======================================================
+
+const DEST_LAT = 43.7538786;
+const DEST_LON = -87.9777240;
+
+//======================================================
+// Display tuning
+//======================================================
+
+// How many yards to change each update.
+const STEP = 1;
+
+// Milliseconds between display updates.
+const UPDATE_MS = 32;
+
+// Ignore ±2 yards of GPS noise
+const DEADBAND = 2; 
+
+// Ignore poor GPS fixes (meters)
+const MAX_ACCURACY = 50;
+
+//======================================================
+
+const startButton = document.getElementById("start");
+const container = document.getElementById("container");
+const display = document.getElementById("display");
+
+let targetYards = 0;
+let displayedYards = 0;
+let firstFix = true;
+
+let lastGpsYards = 0;
+let gpsSpeedYards = 0;      // yards per second
+let lastGpsTime = Date.now();
+
+//======================================================
+
+startButton.onclick = function(){
+
+    if(!navigator.geolocation){
+        alert("Geolocation not supported.");
+        return;
+    }
+
+    startButton.style.display="none";
+    container.style.display="flex";
+
+    navigator.geolocation.watchPosition(
+        gpsUpdate,
+        gpsError,
+        {
+            enableHighAccuracy:true,
+            maximumAge:0,
+            timeout:10000
+        }
+    );
+};
+
+//======================================================
+// Smooth display update
+//======================================================
+
+setInterval(function(){
+
+    const elapsed = (Date.now() - lastGpsTime) / 1000;
+
+    targetYards = Math.max(
+        0,
+        lastGpsYards - gpsSpeedYards * elapsed
+    );
+    
+if (Math.abs(targetYards - displayedYards) <= DEADBAND) {
+    displayedYards = targetYards;
+}
+else if (displayedYards < targetYards) {
+    displayedYards += STEP;
+    if (displayedYards > targetYards)
+        displayedYards = targetYards;
+}
+else {
+    displayedYards -= STEP;
+    if (displayedYards < targetYards)
+        displayedYards = targetYards;
+}
+
+    display.textContent =
+    Math.round(displayedYards).toString();
+
+}, UPDATE_MS);
+
+//======================================================
+// GPS callback
+//======================================================
+
+function gpsUpdate(position){
+
+    if(position.coords.accuracy > MAX_ACCURACY)
+        return;
+
+    const meters = haversine(
+        position.coords.latitude,
+        position.coords.longitude,
+        DEST_LAT,
+        DEST_LON
+    );
+
+    targetYards = meters * 1.0936133;
+
+    lastGpsYards = targetYards;
+
+    // GPS speed is meters/sec. Convert to yards/sec.
+    gpsSpeedYards = Math.max(0, (position.coords.speed || 0) * 1.0936133);
+
+    lastGpsTime = Date.now();
+
+    if(firstFix){
+        displayedYards = targetYards;
+        firstFix = false;
+    }
+}
+
+//======================================================
+
+function gpsError(err){
+
+    display.textContent = "ERROR";
+    console.log(err);
+
+}
+
+//======================================================
+// Haversine distance
+//======================================================
+
+function haversine(lat1, lon1, lat2, lon2){
+
+    const R = 6371000;
+
+    const dLat = radians(lat2-lat1);
+    const dLon = radians(lon2-lon1);
+
+    const a =
+        Math.sin(dLat/2)**2 +
+        Math.cos(radians(lat1)) *
+        Math.cos(radians(lat2)) *
+        Math.sin(dLon/2)**2;
+
+    return R * 2 * Math.atan2(
+        Math.sqrt(a),
+        Math.sqrt(1-a)
+    );
+}
+
+function radians(deg){
+
+    return deg * Math.PI / 180;
+
+}
+
+</script>
+
+</body>
+</html>
