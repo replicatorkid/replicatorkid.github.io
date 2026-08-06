@@ -10,22 +10,37 @@
         margin: 0;
         min-height: 100vh;
         display: flex;
+        flex-direction: column; /* stack vertically so hint is above the column */
         justify-content: center;
         align-items: center;
         background: white;
         font-family: Arial, sans-serif;
+        gap: 50px; /* vertical spacing between hint and column */
+        padding: 20px;
     }
 
     #wordColumn {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 30px; /* Vertical spacing between lines */
+        gap: 25px; /* Vertical spacing between lines */
+        width: 100%;
+        max-width: 900px; /* keep lines readable on large screens */
     }
 
     .word {
-        font-size: 24px;
+        font-size: clamp(18px, 4vw, 24px); /* responsive font size */
         text-align: center;
+        /* allow very long, unbroken strings to wrap on small screens */
+        word-break: break-word;
+        overflow-wrap: anywhere;
+        max-width: 100%;
+    }
+
+    /* keep the hint visually distinct if needed */
+    #unscrambled-hint {
+        line-height: 1.1;
+        max-width: 100%;
     }
 </style>
 </head>
