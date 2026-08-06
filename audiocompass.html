@@ -76,12 +76,13 @@
       //const TARGET = { lat: 43.73334062468951, lon: -88.02644395782748 }; //Kamrath
       //const TARGET = { lat: 43.7467722, lon: -87.9553970 }; //McDonalds
       
-      const CENTER = 200;
-      const FIRST = 1000;
+      const CENTER = 200; // Outer of bullseye
+      const FIRST = 1000; // Outer first ring
       const SECOND = 1800;
       const THIRD = 2600;
       const FOURTH = 3400;
-      const FIFTH = 4200;
+      const FIFTH = 4200; // Outer of last ring
+      const OUTER = 5000; // Inf to ramp-up boundary
 
       function toRad(v){ return v * Math.PI / 180; }
       function haversineMeters(lat1, lon1, lat2, lon2){
@@ -121,9 +122,11 @@
               sensor.closeness = clamp01(1 - Math.min(1.0, (dist - THIRD) / (FOURTH - THIRD)));
             } else if (dist < FIFTH){
               sensor.closeness = clamp01(1 - Math.min(1.0, (dist - FOURTH) / (FIFTH - FOURTH)));
+            } else if (dist < OUTER){
+              sensor.closeness = clamp01(1 - Math.min(1.0, (dist - FIFTH) / (OUTER - FIFTH)));
             } else {
               sensor.closeness = 0;
-            }
+              }
 
             sensor.speed = Math.max(0, speed);
 
@@ -267,10 +270,12 @@
             const nearFreq = baseFreq * Fourth_Ratios[i];
             const farFreq  = baseFreq * Fifth_Ratios[i];
             targetFreq = nearFreq * sensor.closeness + farFreq * (1 - sensor.closeness);
-          } else {
+          } else if (dist < OUTER) {
             const nearFreq = baseFreq * Fifth_Ratios[i];
             const farFreq  = baseFreq * Outer_Ratios[i];
             targetFreq = nearFreq * sensor.closeness + farFreq * (1 - sensor.closeness);
+          } else {
+            targetFreq = baseFreq * Outer_Ratios[i];
           }
 
           try{
