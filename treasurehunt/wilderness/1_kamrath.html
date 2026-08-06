@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Audio Compass — Real-Time Audio+Sensors</title>
+  <style>
+    :root{color-scheme: light}
+    html,body{height:100%;margin:0;background:#fff;color:#000;font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial}
+    .stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+    canvas#vis{position:absolute;inset:0;width:100%;height:100%;display:block;background:#fff}
+
+    /* central simple start button */
+    .init-wrap{position:relative;z-index:10;display:flex;align-items:center;justify-content:center;pointer-events:auto}
+    .init-btn{
+      background:#fff;color:#000;border:1px solid #000;
+      padding:12px 18px;border-radius:6px;font-size:18px;font-weight:600;cursor:pointer;
+      transition:opacity 300ms ease,transform 200ms ease;
+      -webkit-appearance:none;appearance:none
+    }
+    .init-btn:active{transform:translateY(1px)}
+    .init-btn.hidden{opacity:0;transform:scale(.98);pointer-events:none}
+
+    /* small HUD info (hidden by default) */
+    .hud{position:fixed;left:14px;bottom:14px;padding:8px 12px;border-radius:6px;background:#fff;color:#000;font-size:13px;border:1px solid #000}
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <canvas id="vis" aria-hidden="true"></canvas>
+
+    <div class="init-wrap">
+      <button id="init" class="init-btn">Start</button>
+    </div>
+
+    <div id="hud" class="hud">Status: idle</div>
+  </div>
+
+  <script src="sensor.js"></script>
+  <script>
+    // Audio Compass — simplified black & white, stationary waveform, HUD shows distance
+    (function(){
+      // ----- DOM + canvas setup -----
+      const btn = document.getElementById('init');
+      const hud = document.getElementById('hud');
+      const canvas = document.getElementById('vis');
+      const ctx = canvas.getContext('2d');
+
+      // Hide HUD by default; reveal only when URL contains ?hud=1 or #hud
+      hud.style.display = 'none';
+      hud.setAttribute('aria-hidden', 'true');
+      function showHud(){ hud.style.display = 'block'; hud.removeAttribute('aria-hidden'); }
+      function hideHud(){ hud.style.display = 'none'; hud.setAttribute('aria-hidden', 'true'); }
+      if (location.search.includes('hud=1') || location.hash === '#hud') showHud();
+
+      function resizeCanvas(){
+        const dpr = window.devicePixelRatio || 1;
+        const w = Math.max(1, window.innerWidth);
+        const h = Math.max(1, window.innerHeight);
+        canvas.style.width = w + 'px';
+        canvas.style.height = h + 'px';
+        canvas.width = Math.round(w * dpr);
+        canvas.height = Math.round(h * dpr);
+        ctx.setTransform(dpr,0,0,dpr,0,0);
+      }
+      window.addEventListener('resize', resizeCanvas);
+      resizeCanvas();
+
+      // ----- Sensor wrapper approximate mapping -----
+      const sensor = { closeness: 1.0, speed: 0.0, courseAlignment: 0.5, distance: Infinity };
+      window.audioCompassSensor = sensor; // debug access if needed
+
+      //const TARGET = { lat: 43.65915599207643, lon: -87.940456833201 }; //Work
+      const TARGET = { lat: 43.74988703628948, lon: -87.98474163922693 }; //Home
+      //const TARGET = { lat: 43.76002617170988, lon: -87.98538775415024 }; //Church
+      //const TARGET = { lat: 43.73334062468951, lon: -88.02644395782748 }; //Kamrath
+      //const TARGET = { lat: 43.7467722, lon: -87.9553970 }; //McDonalds
+      
+      const CENTER = 200; // Outer of bullseye
+      const FIRST = 1000; // Outer first ring
+      const SECOND = 1800;
+      const THIRD = 2600;
+      const FOURTH = 3400;
+      const FIFTH = 4200; // Outer of last ring
+      const OUTER = 5000; // Inf to ramp-up boundary
+
+      function toRad(v){ return v * Math.PI / 180; }
+      function haversineMeters(lat1, lon1, lat2, lon2){
+        const R = 6371000;
+        const dLat = toRad(lat2 - lat1);
+        const dLon = toRad(lon2 - lon1);
+        const a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)*Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+      }
+      function clamp01(v){ return Math.max(0, Math.min(1, v)); }
+      function bearingTo(lat1, lon1, lat2, lon2){
+        const y = Math.sin(toRad(lon2-lon1)) * Math.cos(toRad(lat2));
+        const x = Math.cos(toRad(lat1))*Math.sin(toRad(lat2)) - Math.sin(toRad(lat1))*Math.cos(toRad(lat2))*Math.cos(toRad(lon2-lon1));
+        const brng = (Math.atan2(y, x) * 180/Math.PI + 360) % 360;
+        return brng;
+      }
+
+      // Helper function
+      function rir(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+      }
+
+      // small float random helper for multiplicative jitter
+      function randFloat(min, max){ return Math.random() * (max - min) + min; }
+
+
+      let lastPos = null;
+
+      function computeClosenessFromDistance(dist){
+        if (!isFinite(dist)) return 0;
+        if (dist < FIRST){
+          return clamp01(1 - Math.min(1.0, (dist - CENTER) / (FIRST - CENTER)));
+        } else if (dist < SECOND){
+          return clamp01(1 - Math.min(1.0, (dist - FIRST) / (SECOND - FIRST)));
+        } else if (dist < THIRD){
+          return clamp01(1 - Math.min(1.0, (dist - SECOND) / (THIRD - SECOND)));
+        } else if (dist < FOURTH){
+          return clamp01(1 - Math.min(1.0, (dist - THIRD) / (FOURTH - THIRD)));
+        } else if (dist < FIFTH){
+          return clamp01(1 - Math.min(1.0, (dist - FOURTH) / (FIFTH - FOURTH)));
+        } else if (dist < OUTER){
+          return clamp01(1 - Math.min(1.0, (dist - FIFTH) / (OUTER - FIFTH)));
+        } else {
+          return 0;
+        }
+      }
+
+      function updateSensorFromSensorsModule(){
+        try{
+          if (window.Sensors && Sensors.gps && Sensors.gps.lat != null){
+            const lat = Sensors.gps.lat;
+            const lon = Sensors.gps.lon;
+            const speed = (Sensors.gps.speed != null) ? Sensors.gps.speed : 0;
+
+            const dist = haversineMeters(lat, lon, TARGET.lat, TARGET.lon);
+            sensor.distance = dist;
+
+            if (dist < FIRST){
+              sensor.closeness = clamp01(1 - Math.min(1.0, (dist - CENTER) / (FIRST - CENTER)));
+            } else if (dist < SECOND){
+              sensor.closeness = clamp01(1 - Math.min(1.0, (dist - FIRST) / (SECOND - FIRST)));
+            } else if (dist < THIRD){
+              sensor.closeness = clamp01(1 - Math.min(1.0, (dist - SECOND) / (THIRD - SECOND)));
+            } else if (dist < FOURTH){
+              sensor.closeness = clamp01(1 - Math.min(1.0, (dist - THIRD) / (FOURTH - THIRD)));
+            } else if (dist < FIFTH){
+              sensor.closeness = clamp01(1 - Math.min(1.0, (dist - FOURTH) / (FIFTH - FOURTH)));
+            } else if (dist < OUTER){
+              sensor.closeness = clamp01(1 - Math.min(1.0, (dist - FIFTH) / (OUTER - FIFTH)));
+            } else {
+              sensor.closeness = 0;
+              }
+
+            sensor.speed = Math.max(0, speed);
+
+            let heading = null;
+            if (Sensors.orientation && Sensors.orientation.heading != null){
+              heading = Sensors.orientation.heading;
+            } else if (Sensors.gps && Sensors.gps.heading != null){
+              heading = Sensors.gps.heading;
+            }
+
+            if (heading == null){
+              if (lastPos){
+                const eps = 1e-6;
+                if (Math.abs(lastPos.lat - lat) > eps || Math.abs(lastPos.lon - lon) > eps){
+                  heading = bearingTo(lastPos.lat, lastPos.lon, lat, lon);
+                }
+              }
+            }
+
+            const targetBearing = bearingTo(lat, lon, TARGET.lat, TARGET.lon);
+            if (heading == null){
+              sensor.courseAlignment = 0.5;
+            } else {
+              let delta = Math.abs(((heading - targetBearing + 540) % 360) - 180);
+              const deltaRad = delta * Math.PI/180;
+              sensor.courseAlignment = Math.max(0, (1 + Math.cos(deltaRad)) / 2);
+            }
+
+            lastPos = { lat, lon };
+            return;
+          }
+        }catch(e){ console.warn('sensor mapping failed', e); }
+
+        // fallback defaults
+        sensor.closeness = 1.0;
+        sensor.speed = 0;
+        sensor.courseAlignment = 0.5;
+        sensor.distance = Infinity;
+      }
+
+      // ----- Audio graph setup (unchanged behavior) -----
+      let Outer_Ratios  = [3.36, 3.67, 4.08, 4.27, 4.91, 5.43, 6.02, 6.61];
+      const Fifth_Ratios = [3.90, 4.00, 4.45, 4.52, 5.95, 6.02, 7.90, 8.05]; 
+      const Fourth_Ratios  = [4.00, 4.02, 4.95, 5.33, 6.00, 6.05, 7.95, 8.00];
+      const Third_Ratios = [4.00, 4.02, 4.80, 5.00, 6.00, 7.20, 8.00, 9.60];
+      const Second_Ratios  = [4.00, 5.00, 6.00, 7.00, 8.00, 10.50, 12.00, 14.00];
+      const First_Ratios  = [4.00, 5.00, 6.00, 7.00, 9.00, 12.00, 16.00, 20.00];
+      const Center_Ratios = [1.00, 2.00, 3.00, 4.00, 6.00, 12.00, 24.00, 32.00];
+      
+      const voiceGains = [0.30, 0.27, 0.20, 0.16, 0.13, 0.10, 0.08, 0.06];
+      const baseFreq = 45;
+
+      let audioCtx = null;
+      let analyser = null;
+      let masterGain = null;
+
+      const sineOsc = new Array(8);
+      const squareOsc = new Array(8);
+      const sineGain = new Array(8);
+      const squareGain = new Array(8);
+
+      let sensorInterval = null;
+      let rafId = null;
+
+      const speedVolumeScaleFactor = 0.06;
+
+      // --- Test mode: spacebar-driven spoofing of distance ---
+      let testMode = false;
+      let testStartAt = 0; // seconds (performance.now()/1000)
+      let testStartDistance = 9000; // start the test out beyond OUTER so you hear the shimmer
+      const TEST_SPEED = 45 * 1609.344 / 3600; // ~20.1168 m/s
+
+      function startDistanceTest(startDist = testStartDistance){
+        testMode = true;
+        testStartAt = performance.now() / 1000;
+        testStartDistance = startDist;
+        sensor.distance = testStartDistance;
+        sensor.closeness = computeClosenessFromDistance(sensor.distance);
+        sensor.speed = TEST_SPEED; // spoof 45 mph in m/s so audio has volume
+        sensor.courseAlignment = 0.75;
+        console.log('audioCompass: distance test started at', testStartDistance);
+      }
+      function stopDistanceTest(){
+        testMode = false;
+        // Immediately refresh sensors from real inputs (if available)
+        try{ updateSensorFromSensorsModule(); }catch(e){}
+        console.log('audioCompass: distance test stopped');
+      }
+
+      window.addEventListener('keydown', (e)=>{
+        // Spacebar toggles test mode. Prevent default so page doesn't scroll.
+        if (e.code === 'Space'){
+          if (!testMode){
+            startDistanceTest();
+          } else {
+            stopDistanceTest();
+          }
+          e.preventDefault();
+        }
+      });
+
+      function buildAudioGraph(){
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) throw new Error('Web Audio API not supported');
+        audioCtx = new AC();
+        if (audioCtx.state === 'suspended'){ audioCtx.resume().catch(()=>{}); }
+
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 2048;
+        analyser.smoothingTimeConstant = 0.2;
+
+        masterGain = audioCtx.createGain();
+        masterGain.gain.setValueAtTime(0, audioCtx.currentTime);
+
+        for (let i=0;i<8;i++){
+          const startFreq = baseFreq * Outer_Ratios[i];
+          const sOsc = audioCtx.createOscillator();
+          sOsc.type = 'sine';
+          sOsc.frequency.setValueAtTime(startFreq, audioCtx.currentTime);
+          const sGain = audioCtx.createGain();
+          sGain.gain.setValueAtTime(0, audioCtx.currentTime);
+          sOsc.connect(sGain);
+          sGain.connect(masterGain);
+          sineOsc[i] = sOsc; sineGain[i] = sGain;
+
+          const qOsc = audioCtx.createOscillator();
+          qOsc.type = 'square';
+          qOsc.frequency.setValueAtTime(startFreq, audioCtx.currentTime);
+          const qGain = audioCtx.createGain();
+          qGain.gain.setValueAtTime(0, audioCtx.currentTime);
+          qOsc.connect(qGain);
+          qGain.connect(masterGain);
+          squareOsc[i] = qOsc; squareGain[i] = qGain;
+        }
+
+        masterGain.connect(analyser);
+        analyser.connect(audioCtx.destination);
+
+        const startAt = audioCtx.currentTime;
+        for (let i=0;i<8;i++){
+          sineOsc[i].start(startAt);
+          squareOsc[i].start(startAt);
+        }
+
+        sensorInterval = setInterval(dspPoll, 100);
+        renderLoop();
+      }
+
+      function dspPoll(){
+        // Update from real sensors unless test mode is active; we'll override below if testMode
+        updateSensorFromSensorsModule();
+
+        // If test mode is running, override distance and derived values
+        if (testMode){
+          const now = performance.now() / 1000;
+          const elapsed = Math.max(0, now - testStartAt);
+          const newDist = Math.max(0, testStartDistance - elapsed * TEST_SPEED);
+          sensor.distance = newDist;
+          sensor.closeness = computeClosenessFromDistance(newDist);
+          sensor.speed = TEST_SPEED; // spoof speed so audio plays
+          sensor.courseAlignment = 0.5;
+
+          if (newDist <= 0){
+            // finished test, return to normal
+            stopDistanceTest();
+            // early-return avoided so the rest of dspPoll applies using the post-test real sensor state
+          }
+        }
+
+        const dist = (sensor.distance != null && isFinite(sensor.distance)) ? sensor.distance : Infinity;
+
+        const targetMasterVolume = Math.min(0.8, sensor.speed * speedVolumeScaleFactor);
+        masterGain.gain.linearRampToValueAtTime(targetMasterVolume, audioCtx.currentTime + 0.1);
+
+        for (let i=0;i<8;i++){
+          let targetFreq;
+          if (dist < FIRST){
+            const centerFreq = baseFreq * Center_Ratios[i];
+            const firstFreq = baseFreq * First_Ratios[i];
+            targetFreq = (centerFreq * sensor.closeness) + (firstFreq * (1 - sensor.closeness));
+          } else if (dist < SECOND) {
+            const nearFreq = baseFreq * First_Ratios[i];
+            const farFreq  = baseFreq * Second_Ratios[i];
+            targetFreq = nearFreq * sensor.closeness + farFreq * (1 - sensor.closeness);
+          } else if (dist < THIRD) {
+            const nearFreq = baseFreq * Second_Ratios[i];
+            const farFreq  = baseFreq * Third_Ratios[i];
+            targetFreq = nearFreq * sensor.closeness + farFreq * (1 - sensor.closeness);
+          } else if (dist < FOURTH) {
+            const nearFreq = baseFreq * Third_Ratios[i];
+            const farFreq  = baseFreq * Fourth_Ratios[i];
+            targetFreq = nearFreq * sensor.closeness + farFreq * (1 - sensor.closeness);
+          } else if (dist < FIFTH) {
+            const nearFreq = baseFreq * Fourth_Ratios[i];
+            const farFreq  = baseFreq * Fifth_Ratios[i];
+            targetFreq = nearFreq * sensor.closeness + farFreq * (1 - sensor.closeness);
+          } else if (dist < OUTER) {
+            const nearFreq = baseFreq * Fifth_Ratios[i];
+            const farFreq  = baseFreq * Outer_Ratios[i];
+            targetFreq = nearFreq * sensor.closeness + farFreq * (1 - sensor.closeness);
+          } else {
+            // Outside OUTER: apply small multiplicative jitter so ratios wander slowly
+            const jitter = 0.005; // +/-0.5%
+            for (let x=0;x<8;x++){
+              Outer_Ratios[x] *= 1 + randFloat(-jitter, jitter);
+            }
+            targetFreq = baseFreq * Outer_Ratios[i];
+          }
+
+          try{
+            sineOsc[i].frequency.linearRampToValueAtTime(targetFreq, audioCtx.currentTime + 0.1);
+            squareOsc[i].frequency.linearRampToValueAtTime(targetFreq, audioCtx.currentTime + 0.1);
+          }catch(e){}
+
+          const sineTargetVolume = voiceGains[i] * sensor.courseAlignment;
+          const squareTargetVolume = voiceGains[i] * (1.0 - sensor.courseAlignment);
+
+          sineGain[i].gain.linearRampToValueAtTime(sineTargetVolume, audioCtx.currentTime + 0.1);
+          squareGain[i].gain.linearRampToValueAtTime(squareTargetVolume, audioCtx.currentTime + 0.1);
+        }
+
+        // update HUD (if visible) with distance in meters
+        if (hud.style.display !== 'none'){
+          const distLabel = (sensor.distance != null && isFinite(sensor.distance)) ? `${sensor.distance.toFixed(1)} m` : '—';
+          hud.textContent = `Distance: ${distLabel}` + (testMode ? ' (test)' : '');
+        }
+      }
+
+      // ----- Visualizer (stationary waveform smoothing) -----
+      let buffer = new Uint8Array(2048);
+      let displayBuffer = null;
+      function renderLoop(){
+        rafId = requestAnimationFrame(renderLoop);
+        if (!analyser) return;
+        const size = analyser.fftSize || 2048;
+        if (buffer.length !== size) buffer = new Uint8Array(size);
+        if (!displayBuffer || displayBuffer.length !== size) displayBuffer = new Float32Array(size);
+
+        analyser.getByteTimeDomainData(buffer);
+
+        // blend new data into displayBuffer slowly so waveform appears more stationary
+        const blend = 0.06; // small blend -> more stationary
+        for (let i=0;i<size;i++){
+          const v = (buffer[i] - 128) / 128; // -1..1
+          displayBuffer[i] = displayBuffer[i] * (1 - blend) + v * blend;
+        }
+
+        // draw
+        const w = canvas.clientWidth; const h = canvas.clientHeight;
+        // clear to white
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0,0,w,h);
+
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#000';
+        ctx.beginPath();
+        const step = w / displayBuffer.length;
+        for (let i=0;i<displayBuffer.length;i++){
+          const v = displayBuffer[i]; // -1..1
+          const y = (1 - (v * 0.5 + 0.5)) * h; // map -1..1 to 0..h (invert for visual)
+          const x = i * step;
+          if (i===0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+
+      // ----- init button handler -----
+      btn.addEventListener('click', async function(){
+        btn.disabled = true;
+
+        // start sensor module if available
+        try{ if (window.Sensors && !Sensors.running){ Sensors.start(); } }catch(e){ console.warn('Sensors.start failed', e); }
+
+        // Build audio graph and ensure context resumed
+        try{
+          buildAudioGraph();
+
+          if (audioCtx && audioCtx.state === 'suspended'){
+            await audioCtx.resume();
+          }
+
+          // fade out the button
+          btn.classList.add('hidden');
+          setTimeout(()=>{ btn.style.display='none'; }, 350);
+
+        }catch(err){
+          console.error('Failed to initialize audio graph', err);
+          btn.disabled = false;
+        }
+      });
+
+      // cleanup on page unload
+      window.addEventListener('pagehide', ()=>{
+        if (sensorInterval) clearInterval(sensorInterval);
+        if (rafId) cancelAnimationFrame(rafId);
+        try{ if (audioCtx) audioCtx.close(); }catch(e){}
+      });
+
+    })();
+  </script>
+</body>
+</html>
