@@ -106,6 +106,9 @@
         return Math.floor(Math.random() * (max - min + 1)) + min;
       }
 
+      // small float random helper for multiplicative jitter
+      function randFloat(min, max){ return Math.random() * (max - min) + min; }
+
 
       let lastPos = null;
 
@@ -223,13 +226,14 @@
       let testMode = false;
       let testStartAt = 0; // seconds (performance.now()/1000)
       const testSpeed = 50; // m/s (decrease rate)
+      const SPEED_45_MPS = 45 * 1609.344 / 3600; // ~20.1168 m/s
 
       function startDistanceTest(){
         testMode = true;
         testStartAt = performance.now() / 1000;
         sensor.distance = OUTER;
         sensor.closeness = computeClosenessFromDistance(sensor.distance);
-        sensor.speed = 0;
+        sensor.speed = SPEED_45_MPS; // spoof 45 mph in m/s so audio has volume
         sensor.courseAlignment = 0.5;
         console.log('audioCompass: distance test started');
       }
@@ -310,7 +314,7 @@
           const newDist = Math.max(0, OUTER - elapsed * testSpeed);
           sensor.distance = newDist;
           sensor.closeness = computeClosenessFromDistance(newDist);
-          sensor.speed = 0;
+          sensor.speed = SPEED_45_MPS; // spoof 45 mph so audio plays
           sensor.courseAlignment = 0.5;
 
           if (newDist <= 0){
@@ -352,9 +356,10 @@
             const farFreq  = baseFreq * Outer_Ratios[i];
             targetFreq = nearFreq * sensor.closeness + farFreq * (1 - sensor.closeness);
           } else {
+            // Outside OUTER: apply small multiplicative jitter so ratios wander slowly
+            const jitter = 0.005; // +/-0.5%
             for (let x=0;x<8;x++){
-              // Change each frequency by a small amount
-              Outer_Ratios[x] = Outer_Ratios[x]*rir(-0.005,0.005);
+              Outer_Ratios[x] *= 1 + randFloat(-jitter, jitter);
             }
             targetFreq = baseFreq * Outer_Ratios[i];
           }
