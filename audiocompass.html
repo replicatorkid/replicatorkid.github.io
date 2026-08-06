@@ -108,6 +108,26 @@
 
 
       let lastPos = null;
+
+      function computeClosenessFromDistance(dist){
+        if (!isFinite(dist)) return 0;
+        if (dist < FIRST){
+          return clamp01(1 - Math.min(1.0, (dist - CENTER) / (FIRST - CENTER)));
+        } else if (dist < SECOND){
+          return clamp01(1 - Math.min(1.0, (dist - FIRST) / (SECOND - FIRST)));
+        } else if (dist < THIRD){
+          return clamp01(1 - Math.min(1.0, (dist - SECOND) / (THIRD - SECOND)));
+        } else if (dist < FOURTH){
+          return clamp01(1 - Math.min(1.0, (dist - THIRD) / (FOURTH - THIRD)));
+        } else if (dist < FIFTH){
+          return clamp01(1 - Math.min(1.0, (dist - FOURTH) / (FIFTH - FOURTH)));
+        } else if (dist < OUTER){
+          return clamp01(1 - Math.min(1.0, (dist - FIFTH) / (OUTER - FIFTH)));
+        } else {
+          return 0;
+        }
+      }
+
       function updateSensorFromSensorsModule(){
         try{
           if (window.Sensors && Sensors.gps && Sensors.gps.lat != null){
@@ -199,6 +219,39 @@
 
       const speedVolumeScaleFactor = 0.06;
 
+      // --- Test mode: spacebar-driven spoofing of distance ---
+      let testMode = false;
+      let testStartAt = 0; // seconds (performance.now()/1000)
+      const testSpeed = 50; // m/s (decrease rate)
+
+      function startDistanceTest(){
+        testMode = true;
+        testStartAt = performance.now() / 1000;
+        sensor.distance = OUTER;
+        sensor.closeness = computeClosenessFromDistance(sensor.distance);
+        sensor.speed = 0;
+        sensor.courseAlignment = 0.5;
+        console.log('audioCompass: distance test started');
+      }
+      function stopDistanceTest(){
+        testMode = false;
+        // Immediately refresh sensors from real inputs (if available)
+        try{ updateSensorFromSensorsModule(); }catch(e){}
+        console.log('audioCompass: distance test stopped');
+      }
+
+      window.addEventListener('keydown', (e)=>{
+        // Spacebar toggles test mode. Prevent default so page doesn't scroll.
+        if (e.code === 'Space'){
+          if (!testMode){
+            startDistanceTest();
+          } else {
+            stopDistanceTest();
+          }
+          e.preventDefault();
+        }
+      });
+
       function buildAudioGraph(){
         const AC = window.AudioContext || window.webkitAudioContext;
         if (!AC) throw new Error('Web Audio API not supported');
@@ -247,7 +300,25 @@
       }
 
       function dspPoll(){
+        // Update from real sensors unless test mode is active; we'll override below if testMode
         updateSensorFromSensorsModule();
+
+        // If test mode is running, override distance and derived values
+        if (testMode){
+          const now = performance.now() / 1000;
+          const elapsed = Math.max(0, now - testStartAt);
+          const newDist = Math.max(0, OUTER - elapsed * testSpeed);
+          sensor.distance = newDist;
+          sensor.closeness = computeClosenessFromDistance(newDist);
+          sensor.speed = 0;
+          sensor.courseAlignment = 0.5;
+
+          if (newDist <= 0){
+            // finished test, return to normal
+            stopDistanceTest();
+            // early-return avoided so the rest of dspPoll applies using the post-test real sensor state
+          }
+        }
 
         const dist = (sensor.distance != null && isFinite(sensor.distance)) ? sensor.distance : Infinity;
 
@@ -303,7 +374,7 @@
         // update HUD (if visible) with distance in meters
         if (hud.style.display !== 'none'){
           const distLabel = (sensor.distance != null && isFinite(sensor.distance)) ? `${sensor.distance.toFixed(1)} m` : '—';
-          hud.textContent = `Distance: ${distLabel}`;
+          hud.textContent = `Distance: ${distLabel}` + (testMode ? ' (test)' : '');
         }
       }
 
