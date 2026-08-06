@@ -226,15 +226,15 @@
       let testMode = false;
       let testStartAt = 0; // seconds (performance.now()/1000)
       const testSpeed = 50; // m/s (decrease rate)
-      const SPEED_45_MPS = 45 * 1609.344 / 3600; // ~20.1168 m/s
+      const TEST_SPEED = 60 * 1609.344 / 3600; // ~20.1168 m/s
 
       function startDistanceTest(){
         testMode = true;
         testStartAt = performance.now() / 1000;
-        sensor.distance = OUTER;
+        sensor.distance = OUTER + 2000;
         sensor.closeness = computeClosenessFromDistance(sensor.distance);
-        sensor.speed = SPEED_45_MPS; // spoof 45 mph in m/s so audio has volume
-        sensor.courseAlignment = 0.5;
+        sensor.speed = TEST_SPEED; // spoof 45 mph in m/s so audio has volume
+        sensor.courseAlignment = 0.75;
         console.log('audioCompass: distance test started');
       }
       function stopDistanceTest(){
