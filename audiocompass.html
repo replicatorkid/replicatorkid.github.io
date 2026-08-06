@@ -314,7 +314,7 @@
           const newDist = Math.max(0, OUTER - elapsed * testSpeed);
           sensor.distance = newDist;
           sensor.closeness = computeClosenessFromDistance(newDist);
-          sensor.speed = SPEED_45_MPS; // spoof 45 mph so audio plays
+          sensor.speed = TEST_SPEED; // spoof speed so audio plays
           sensor.courseAlignment = 0.5;
 
           if (newDist <= 0){
