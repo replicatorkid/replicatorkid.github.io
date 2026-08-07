@@ -1,0 +1,205 @@
+{
+  "words":
+  [
+    {
+      "id": 1,
+      "hebrew": "אוהל",
+      "english": "tent",
+      "Era": "both",
+      "mastery": 0,
+      "timesCorrect": 0,
+      "timesIncorrect": 0,
+      "lastSeen": null
+    },
+    {
+      "id": 2,
+      "hebrew": "מדורה",
+      "english": "campfire",
+      "Era": "both",
+      "mastery": 0,
+      "timesCorrect": 0,
+      "timesIncorrect": 0,
+      "lastSeen": null
+    },
+    {
+      "id": 3,
+      "hebrew": "פנס",
+      "english": "flashlight",
+      "Era": "modern",
+      "mastery": 0,
+      "timesCorrect": 0,
+      "timesIncorrect": 0,
+      "lastSeen": null
+    },
+    {
+      "id": 4,
+      "hebrew": "מים",
+      "english": "water",
+      "Era": "both",
+      "mastery": 0,
+      "timesCorrect": 0,
+      "timesIncorrect": 0,
+      "lastSeen": null
+    },
+    {
+      "id": 5,
+      "hebrew": "יער",
+      "english": "woods / forest",
+      "Era": "both",
+      "mastery": 0,
+      "timesCorrect": 0,
+      "timesIncorrect": 0,
+      "lastSeen": null
+    },
+    {
+      "id": 6,
+      "hebrew": "שביל",
+      "english": "trail",
+      "Era": "both",
+      "mastery": 0,
+      "timesCorrect": 0,
+      "timesIncorrect": 0,
+      "lastSeen": null
+    },
+    {
+      "id": 7,
+      "hebrew": "אתר קמפינג",
+      "english": "campsite",
+      "Era": "modern",
+      "mastery": 0,
+      "timesCorrect": 0,
+      "timesIncorrect": 0,
+      "lastSeen": null
+    },
+    {
+      "id": 8,
+      "hebrew": "לטייל",
+      "english": "to hike / to walk",
+      "Era": "both",
+      "mastery": 0,
+      "timesCorrect": 0,
+      "timesIncorrect": 0,
+      "lastSeen": null
+    },
+    {
+      "id": 9,
+      "hebrew": "לבשל",
+      "english": "to cook",
+      "Era": "both",
+      "mastery": 0,
+      "timesCorrect": 0,
+      "timesIncorrect": 0,
+      "lastSeen": null
+    },
+    {
+      "id": 10,
+      "hebrew": "אוכל",
+      "english": "food",
+      "Era": "both",
+      "mastery": 0,
+      "timesCorrect": 0,
+      "timesIncorrect": 0,
+      "lastSeen": null
+    },
+    {
+      "id": 11,
+      "hebrew": "נעליים",
+      "english": "shoes",
+      "Era": "both",
+      "mastery": 0,
+      "timesCorrect": 0,
+      "timesIncorrect": 0,
+      "lastSeen": null
+    },
+    {
+      "id": 12,
+      "hebrew": "יתוש",
+      "english": "mosquito",
+      "Era": "both",
+      "mastery": 0,
+      "timesCorrect": 0,
+      "timesIncorrect": 0,
+      "lastSeen": null
+    },
+    {
+      "id": 13,
+      "hebrew": "עצים",
+      "english": "trees",
+      "Era": "both",
+      "mastery": 0,
+      "timesCorrect": 0,
+      "timesIncorrect": 0,
+      "lastSeen": null
+    },
+    {
+      "id": 14,
+      "hebrew": "גשם",
+      "english": "rain",
+      "Era": "both",
+      "mastery": 0,
+      "timesCorrect": 0,
+      "timesIncorrect": 0,
+      "lastSeen": null
+    },
+    {
+      "id": 15,
+      "hebrew": "שמש",
+      "english": "sun",
+      "Era": "both",
+      "mastery": 0,
+      "timesCorrect": 0,
+      "timesIncorrect": 0,
+      "lastSeen": null
+    },
+    {
+      "id": 16,
+      "hebrew": "לישון",
+      "english": "to sleep",
+      "Era": "both",
+      "mastery": 0,
+      "timesCorrect": 0,
+      "timesIncorrect": 0,
+      "lastSeen": null
+    },
+    {
+      "id": 17,
+      "hebrew": "רעב",
+      "english": "hungry (m.s.)",
+      "Era": "both",
+      "mastery": 0,
+      "timesCorrect": 0,
+      "timesIncorrect": 0,
+      "lastSeen": null
+    },
+    {
+      "id": 18,
+      "hebrew": "כובע",
+      "english": "baseball cap / hat",
+      "Era": "both",
+      "mastery": 0,
+      "timesCorrect": 0,
+      "timesIncorrect": 0,
+      "lastSeen": null
+    },
+    {
+      "id": 19,
+      "hebrew": "אורז",
+      "english": "rice",
+      "Era": "both",
+      "mastery": 0,
+      "timesCorrect": 0,
+      "timesIncorrect": 0,
+      "lastSeen": null
+    },
+    {
+      "id": 20,
+      "hebrew": "קפה",
+      "english": "coffee",
+      "Era": "modern",
+      "mastery": 0,
+      "timesCorrect": 0,
+      "timesIncorrect": 0,
+      "lastSeen": null
+    }
+  ]
+}
