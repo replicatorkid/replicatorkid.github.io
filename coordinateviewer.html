@@ -42,10 +42,27 @@
   <script>
     // Initialize map
     const map = L.map('map').setView([20,0], 2);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+
+    // Base layers: Street (OSM) and Satellite (Esri World Imagery)
+    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
+    });
+
+    const esriSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      attribution: 'Tiles © Esri, USGS, NOAA'
+    });
+
+    // Add satellite as the default basemap so ground features are visible
+    esriSat.addTo(map);
+
+    // Layer control to switch basemaps
+    const baseMaps = {
+      "Street": osm,
+      "Satellite (Esri)": esriSat
+    };
+    L.control.layers(baseMaps, null, {collapsed: false}).addTo(map);
 
     // Ensure stable container and stacking
     const mapContainer = map.getContainer();
