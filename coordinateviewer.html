@@ -4,13 +4,13 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Coordinate Viewer</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha512-sA+e2qgqGg2s7n1jv0rVYkq8n3QpWmRr0t6z0hV1V1m8Zj8x1GQd8j9y7gKQF6t9g1h2/3w==" crossorigin=""/>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" integrity="sha512-gb0a2rYJ3qgq2QJ6Qb6Y2zv2f6s9Qf7R0t6z0hV1V1m8Zj8x1GQd8j9y7gKQF6t9g1h2/3w==" crossorigin=""/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" crossorigin=""/>
   <style>
     html,body{height:100%;margin:0}
-    .wrap{display:flex;height:100vh}
-    #sidebar{width:340px;padding:12px;box-sizing:border-box;border-right:1px solid #ddd;overflow:auto}
-    #map{flex:1}
+    .wrap{display:flex;height:100vh;overflow:hidden}
+    #sidebar{width:340px;padding:12px;box-sizing:border-box;border-right:1px solid #ddd;overflow:auto;position:relative;z-index:1001;background:#fff}
+    #map{flex:1;min-width:0;min-height:0;height:100%}
     textarea{width:100%;height:260px;font-family:monospace;margin-bottom:8px}
     button{margin-right:6px}
     .coords-list{margin-top:8px;padding:0;list-style:none}
@@ -38,7 +38,7 @@
     <div id="map"></div>
   </div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha512-..." crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
   <script>
     // Initialize map
@@ -47,6 +47,10 @@
       maxZoom: 19,
       attribution: '© OpenStreetMap contributors'
     }).addTo(map);
+
+    // Invalidate map size once after load (fixes rendering when using flexbox)
+    setTimeout(() => map.invalidateSize(), 100);
+    window.addEventListener('resize', () => map.invalidateSize());
 
     // Feature group for drawn items and parsed points
     const drawnItems = new L.FeatureGroup().addTo(map);
@@ -80,10 +84,9 @@
     function parseCoordinateToken(token) {
       token = token.trim();
       // Try to find DMS with hemisphere letter
-      const dmsRegex = /([+-]?\d{1,3})[^\d\w]+(\d{1,2})?[^\d\w]*(\d{1,2}(?:\.\d+)?)?[^\d\w]*([NSEW])?/i;
       const hemRegex = /([NSWE])/i;
       // If contains degree symbol or ' or " or N/S/E/W, attempt DMS parse
-      if (/[°'"]|[NnSsEeWw]/.test(token)) {
+      if (/[°'"NSWEnswe]/.test(token)) {
         // Normalize: replace degree char with ° if present
         token = token.replace(/[°º]/g, '°');
         // Extract numbers and hemisphere
@@ -107,7 +110,7 @@
     function parsePairsFromText(text) {
       const pairs = [];
       // First, attempt to find explicit pairs like (lat, lon) or lat,lon or lat / lon
-      const pairRegex = /([+-]?[^,;\n()\[\]]{0,40}?[0-9°º'"\s\.\-]+)[,;\/\s]{1,40}?([+-]?[^,;\n()\[\]]{0,40}?[0-9°º'"\s\.\-]+)/g;
+      const pairRegex = /([+-]?[^,;\n()\[\]]{0,80}?[0-9°º'"\s\.\-]+)[,;\/\s]{1,40}?([+-]?[^,;\n()\[\]]{0,80}?[0-9°º'"\s\.\-]+)/g;
       // We'll scan line-by-line and also run the pair regex over whole text
       const lines = text.split(/\n+/);
       for (const line of lines) {
@@ -133,12 +136,10 @@
         }
 
         // If no pairs on the line, try to extract all numbers and pair them sequentially
-        const nums = (line.match(/[+-]?\d+(?:\.\d+)?|\d+°|\d+'|\d+\"|[NSnsEWw]/g) || []).join(' ');
-        if (!nums) continue;
-        // Extract decimal numbers from the line
         const numMatches = (line.match(/[+-]?\d+(?:\.\d+)?/g) || []).map(Number);
-        if (numMatches.length >= 2 && numMatches.length % 2 === 0) {
-          for (let i = 0; i < numMatches.length; i += 2) {
+        if (numMatches.length >= 2) {
+          // pair sequentially
+          for (let i = 0; i + 1 < numMatches.length; i += 2) {
             const lat = numMatches[i];
             const lon = numMatches[i+1];
             if (Math.abs(lat) <= 90 && Math.abs(lon) <= 180) pairs.push([lat, lon]);
@@ -191,7 +192,11 @@
         addMarker(p[0], p[1], i+1);
         bounds.push([p[0], p[1]]);
       });
-      try { map.fitBounds(bounds, {maxZoom: 16}); } catch(e) { }
+      try {
+        map.fitBounds(bounds, {maxZoom: 16});
+        // Sometimes after fitBounds with flex layout Leaflet needs to recompute sizes
+        setTimeout(() => map.invalidateSize(), 200);
+      } catch(e) { }
     });
 
     document.getElementById('clearBtn').addEventListener('click', () => {
