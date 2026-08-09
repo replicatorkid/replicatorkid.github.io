@@ -1,1 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Coordinate Viewer</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha512-sA+e2qgqGg2s7n1jv0rVYkq8n3QpWmRr0t6z0hV1V1m8Zj8x1GQd8j9y7gKQF6t9g1h2/3w==" crossorigin=""/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" integrity="sha512-gb0a2rYJ3qgq2QJ6Qb6Y2zv2f6s9Qf7R0t6z0hV1V1m8Zj8x1GQd8j9y7gKQF6t9g1h2/3w==" crossorigin=""/>
+  <style>
+    html,body{height:100%;margin:0}
+    .wrap{display:flex;height:100vh}
+    #sidebar{width:340px;padding:12px;box-sizing:border-box;border-right:1px solid #ddd;overflow:auto}
+    #map{flex:1}
+    textarea{width:100%;height:260px;font-family:monospace;margin-bottom:8px}
+    button{margin-right:6px}
+    .coords-list{margin-top:8px;padding:0;list-style:none}
+    .coords-list li{padding:6px;border-bottom:1px solid #eee;cursor:pointer}
+    .hint{font-size:0.9em;color:#555}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div id="sidebar">
+      <h2>Coordinate Viewer</h2>
+      <p class="hint">Paste coordinates (mixed formatting OK). Examples accepted: "(51.505, -0.09)", "51°30'16.9\"N 0°7'24.0\"W", "-33.86,151.20"</p>
+      <textarea id="input" placeholder="Paste coordinates here...">(51.505, -0.09)
+(51.51, -0.1)
+51°30'16.9"N 0°7'24.0"W
+-33°51'34.8" 151°12'0"</textarea>
+      <div>
+        <button id="parseBtn">Parse & Plot</button>
+        <button id="clearBtn">Clear</button>
+        <button id="exportBtn">Export GeoJSON</button>
+      </div>
+      <h3>Points</h3>
+      <ul id="points" class="coords-list"></ul>
+    </div>
+    <div id="map"></div>
+  </div>
 
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha512-..." crossorigin=""></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+  <script>
+    // Initialize map
+    const map = L.map('map').setView([20,0], 2);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+      maxZoom: 19,
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Feature group for drawn items and parsed points
+    const drawnItems = new L.FeatureGroup().addTo(map);
+
+    // Add draw control
+    const drawControl = new L.Control.Draw({
+      edit: { featureGroup: drawnItems },
+      draw: { polygon:true, polyline:true, rectangle:true, circle:true, marker:true }
+    });
+    map.addControl(drawControl);
+
+    map.on(L.Draw.Event.CREATED, function (e) {
+      const layer = e.layer;
+      drawnItems.addLayer(layer);
+    });
+
+    // Utility: parse DMS (e.g. 51°30'16.9"N) to decimal
+    function dmsToDecimal(deg, min, sec, hem) {
+      let d = Number(deg) || 0;
+      let m = Number(min) || 0;
+      let s = Number(sec) || 0;
+      let sign = 1;
+      if (hem) {
+        hem = hem.toUpperCase();
+        if (hem === 'S' || hem === 'W') sign = -1;
+      }
+      return sign * (Math.abs(d) + m/60 + s/3600);
+    }
+
+    // Try to parse a single coordinate token that may be decimal or DMS
+    function parseCoordinateToken(token) {
+      token = token.trim();
+      // Try to find DMS with hemisphere letter
+      const dmsRegex = /([+-]?\d{1,3})[^\d\w]+(\d{1,2})?[^\d\w]*(\d{1,2}(?:\.\d+)?)?[^\d\w]*([NSEW])?/i;
+      const hemRegex = /([NSWE])/i;
+      // If contains degree symbol or ' or " or N/S/E/W, attempt DMS parse
+      if (/[°'"]|[NnSsEeWw]/.test(token)) {
+        // Normalize: replace degree char with ° if present
+        token = token.replace(/[°º]/g, '°');
+        // Extract numbers and hemisphere
+        const parts = token.match(/(\d+(?:\.\d+)?)/g) || [];
+        const hemMatch = token.match(hemRegex);
+        if (parts.length === 0) return null;
+        const deg = parts[0];
+        const min = parts[1] || 0;
+        const sec = parts[2] || 0;
+        const hem = hemMatch ? hemMatch[0] : null;
+        return dmsToDecimal(deg, min, sec, hem);
+      }
+
+      // Otherwise try decimal
+      const num = token.match(/[+-]?\d+(?:\.\d+)?/);
+      if (num) return Number(num[0]);
+      return null;
+    }
+
+    // Main parsing: find coordinate pairs robustly in free text
+    function parsePairsFromText(text) {
+      const pairs = [];
+      // First, attempt to find explicit pairs like (lat, lon) or lat,lon or lat / lon
+      const pairRegex = /([+-]?[^,;\n()\[\]]{0,40}?[0-9°º'"\s\.\-]+)[,;\/\s]{1,40}?([+-]?[^,;\n()\[\]]{0,40}?[0-9°º'"\s\.\-]+)/g;
+      // We'll scan line-by-line and also run the pair regex over whole text
+      const lines = text.split(/\n+/);
+      for (const line of lines) {
+        let m;
+        // Quickly look for common lat/lon separators
+        while ((m = pairRegex.exec(line)) !== null) {
+          const a = m[1].trim();
+          const b = m[2].trim();
+          const lat = parseCoordinateToken(a);
+          const lon = parseCoordinateToken(b);
+          if (lat !== null && lon !== null) {
+            // Heuristic: lat must be between -90 and 90, lon between -180 and 180
+            if (Math.abs(lat) <= 90 && Math.abs(lon) <= 180) {
+              pairs.push([lat, lon]);
+              continue;
+            }
+            // Maybe swapped
+            if (Math.abs(lon) <= 90 && Math.abs(lat) <= 180) {
+              pairs.push([lon, lat]);
+              continue;
+            }
+          }
+        }
+
+        // If no pairs on the line, try to extract all numbers and pair them sequentially
+        const nums = (line.match(/[+-]?\d+(?:\.\d+)?|\d+°|\d+'|\d+\"|[NSnsEWw]/g) || []).join(' ');
+        if (!nums) continue;
+        // Extract decimal numbers from the line
+        const numMatches = (line.match(/[+-]?\d+(?:\.\d+)?/g) || []).map(Number);
+        if (numMatches.length >= 2 && numMatches.length % 2 === 0) {
+          for (let i = 0; i < numMatches.length; i += 2) {
+            const lat = numMatches[i];
+            const lon = numMatches[i+1];
+            if (Math.abs(lat) <= 90 && Math.abs(lon) <= 180) pairs.push([lat, lon]);
+            else if (Math.abs(lon) <= 90 && Math.abs(lat) <= 180) pairs.push([lon, lat]);
+          }
+        }
+      }
+
+      // As a fallback, try to find DMS pairs anywhere in the text using generic DMS capture
+      const dmsPairRegex = /([0-9]{1,3}[^\d\w]+\d{1,2}[^\d\w]*\d{0,2}(?:\.\d+)?[^,;\n]*[NS])[^,;\n]*?([0-9]{1,3}[^\d\w]+\d{1,2}[^\d\w]*\d{0,2}(?:\.\d+)?[^,;\n]*[EW])/gi;
+      let dm;
+      while ((dm = dmsPairRegex.exec(text)) !== null) {
+        const left = dm[1];
+        const right = dm[2];
+        const lat = parseCoordinateToken(left);
+        const lon = parseCoordinateToken(right);
+        if (lat !== null && lon !== null) pairs.push([lat, lon]);
+      }
+
+      return pairs;
+    }
+
+    // Plotting helpers
+    let markers = [];
+    function clearMarkers() {
+      markers.forEach(m => map.removeLayer(m));
+      markers = [];
+      document.getElementById('points').innerHTML = '';
+    }
+
+    function addMarker(lat, lon, idx) {
+      const marker = L.marker([lat, lon]).addTo(map).bindPopup(`#${idx}: ${lat.toFixed(6)}, ${lon.toFixed(6)}`);
+      markers.push(marker);
+      const li = document.createElement('li');
+      li.textContent = `#${idx}: ${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+      li.onclick = () => { map.setView([lat,lon], 14); marker.openPopup(); };
+      document.getElementById('points').appendChild(li);
+    }
+
+    document.getElementById('parseBtn').addEventListener('click', () => {
+      const text = document.getElementById('input').value;
+      const pairs = parsePairsFromText(text);
+      clearMarkers();
+      if (pairs.length === 0) {
+        alert('No valid coordinate pairs found.');
+        return;
+      }
+      const bounds = [];
+      pairs.forEach((p, i) => {
+        addMarker(p[0], p[1], i+1);
+        bounds.push([p[0], p[1]]);
+      });
+      try { map.fitBounds(bounds, {maxZoom: 16}); } catch(e) { }
+    });
+
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      clearMarkers();
+      document.getElementById('input').value = '';
+    });
+
+    document.getElementById('exportBtn').addEventListener('click', () => {
+      const features = markers.map((m, i) => ({
+        type: 'Feature',
+        properties: { id: i+1 },
+        geometry: { type: 'Point', coordinates: [m.getLatLng().lng, m.getLatLng().lat] }
+      }));
+      const geojson = { type: 'FeatureCollection', features };
+      const blob = new Blob([JSON.stringify(geojson, null, 2)], {type: 'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'points.geojson'; a.click();
+      URL.revokeObjectURL(url);
+    });
+
+  </script>
+</body>
+</html>
