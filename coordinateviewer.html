@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Coordinate Viewer</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" crossorigin=""/>
   <style>
     html,body{height:100%;margin:0}
     .wrap{display:flex;height:100vh;overflow:hidden}
-    #sidebar{width:340px;padding:12px;box-sizing:border-box;border-right:1px solid #ddd;overflow:auto;position:relative;z-index:1001;background:#fff}
-    #map{flex:1;min-width:0;min-height:0;height:100%}
+    #sidebar{width:340px;padding:12px;box-sizing:border-box;border-right:1px solid #ddd;overflow:auto;position:relative;z-index:10010;background:#fff}
+    #map{flex:1;min-width:0;min-height:0;height:100%;position:relative;z-index:0;-webkit-transform:translateZ(0);will-change:transform}
+    .leaflet-container{width:100%;height:100%;position:relative}
     textarea{width:100%;height:260px;font-family:monospace;margin-bottom:8px}
     button{margin-right:6px}
     .coords-list{margin-top:8px;padding:0;list-style:none}
@@ -39,7 +39,6 @@
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
   <script>
     // Initialize map
     const map = L.map('map').setView([20,0], 2);
@@ -48,24 +47,19 @@
       attribution: '© OpenStreetMap contributors'
     }).addTo(map);
 
+    // Ensure stable container and stacking
+    const mapContainer = map.getContainer();
+    mapContainer.style.position = 'relative';
+    mapContainer.style.zIndex = '0';
+    document.getElementById('sidebar').style.zIndex = '10010';
+
     // Invalidate map size once after load (fixes rendering when using flexbox)
-    setTimeout(() => map.invalidateSize(), 100);
-    window.addEventListener('resize', () => map.invalidateSize());
+    setTimeout(() => map.invalidateSize(true), 150);
+    window.addEventListener('resize', () => map.invalidateSize(true));
 
-    // Feature group for drawn items and parsed points
-    const drawnItems = new L.FeatureGroup().addTo(map);
-
-    // Add draw control
-    const drawControl = new L.Control.Draw({
-      edit: { featureGroup: drawnItems },
-      draw: { polygon:true, polyline:true, rectangle:true, circle:true, marker:true }
-    });
-    map.addControl(drawControl);
-
-    map.on(L.Draw.Event.CREATED, function (e) {
-      const layer = e.layer;
-      drawnItems.addLayer(layer);
-    });
+    // When map moves/zooms, ensure size is up-to-date (helps with flex layouts)
+    map.on('movestart', () => { mapContainer.style.willChange = 'transform'; });
+    map.on('moveend zoomend', () => { map.invalidateSize(true); mapContainer.style.willChange = 'auto'; });
 
     // Utility: parse DMS (e.g. 51°30'16.9"N) to decimal
     function dmsToDecimal(deg, min, sec, hem) {
@@ -83,13 +77,9 @@
     // Try to parse a single coordinate token that may be decimal or DMS
     function parseCoordinateToken(token) {
       token = token.trim();
-      // Try to find DMS with hemisphere letter
       const hemRegex = /([NSWE])/i;
-      // If contains degree symbol or ' or " or N/S/E/W, attempt DMS parse
       if (/[°'"NSWEnswe]/.test(token)) {
-        // Normalize: replace degree char with ° if present
         token = token.replace(/[°º]/g, '°');
-        // Extract numbers and hemisphere
         const parts = token.match(/(\d+(?:\.\d+)?)/g) || [];
         const hemMatch = token.match(hemRegex);
         if (parts.length === 0) return null;
@@ -99,8 +89,6 @@
         const hem = hemMatch ? hemMatch[0] : null;
         return dmsToDecimal(deg, min, sec, hem);
       }
-
-      // Otherwise try decimal
       const num = token.match(/[+-]?\d+(?:\.\d+)?/);
       if (num) return Number(num[0]);
       return null;
@@ -109,25 +97,20 @@
     // Main parsing: find coordinate pairs robustly in free text
     function parsePairsFromText(text) {
       const pairs = [];
-      // First, attempt to find explicit pairs like (lat, lon) or lat,lon or lat / lon
       const pairRegex = /([+-]?[^,;\n()\[\]]{0,80}?[0-9°º'"\s\.\-]+)[,;\/\s]{1,40}?([+-]?[^,;\n()\[\]]{0,80}?[0-9°º'"\s\.\-]+)/g;
-      // We'll scan line-by-line and also run the pair regex over whole text
       const lines = text.split(/\n+/);
       for (const line of lines) {
         let m;
-        // Quickly look for common lat/lon separators
         while ((m = pairRegex.exec(line)) !== null) {
           const a = m[1].trim();
           const b = m[2].trim();
           const lat = parseCoordinateToken(a);
           const lon = parseCoordinateToken(b);
           if (lat !== null && lon !== null) {
-            // Heuristic: lat must be between -90 and 90, lon between -180 and 180
             if (Math.abs(lat) <= 90 && Math.abs(lon) <= 180) {
               pairs.push([lat, lon]);
               continue;
             }
-            // Maybe swapped
             if (Math.abs(lon) <= 90 && Math.abs(lat) <= 180) {
               pairs.push([lon, lat]);
               continue;
@@ -135,10 +118,8 @@
           }
         }
 
-        // If no pairs on the line, try to extract all numbers and pair them sequentially
         const numMatches = (line.match(/[+-]?\d+(?:\.\d+)?/g) || []).map(Number);
         if (numMatches.length >= 2) {
-          // pair sequentially
           for (let i = 0; i + 1 < numMatches.length; i += 2) {
             const lat = numMatches[i];
             const lon = numMatches[i+1];
@@ -148,7 +129,6 @@
         }
       }
 
-      // As a fallback, try to find DMS pairs anywhere in the text using generic DMS capture
       const dmsPairRegex = /([0-9]{1,3}[^\d\w]+\d{1,2}[^\d\w]*\d{0,2}(?:\.\d+)?[^,;\n]*[NS])[^,;\n]*?([0-9]{1,3}[^\d\w]+\d{1,2}[^\d\w]*\d{0,2}(?:\.\d+)?[^,;\n]*[EW])/gi;
       let dm;
       while ((dm = dmsPairRegex.exec(text)) !== null) {
@@ -194,8 +174,7 @@
       });
       try {
         map.fitBounds(bounds, {maxZoom: 16});
-        // Sometimes after fitBounds with flex layout Leaflet needs to recompute sizes
-        setTimeout(() => map.invalidateSize(), 200);
+        setTimeout(() => map.invalidateSize(true), 200);
       } catch(e) { }
     });
 
