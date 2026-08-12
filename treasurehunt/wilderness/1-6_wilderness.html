@@ -223,7 +223,7 @@
 
       const speedVolumeScaleFactor = 0.06;
 
-      // --- Test mode: spacebar-driven spoofing of distance ---
+      // --- Test mode: spacebar-driven spoofing of distance -----
       let testMode = false;
       let testStartAt = 0; // seconds (performance.now()/1000)
       let testStartDistance = 9000; // start the test out beyond OUTER so you hear the shimmer
@@ -411,12 +411,26 @@
         ctx.fillRect(0,0,w,h);
 
         ctx.lineWidth = 2;
-        ctx.strokeStyle = '#000';
+        // dynamic color: interpolate from warning red -> black as courseAlignment increases
+        const alignT = clamp01(sensor.courseAlignment || 0.5);
+        const sr = 255, sg = 80, sb = 80; // warning red-ish
+        const er = 0, eg = 0, eb = 0;     // settled black
+        const rr = Math.round(sr * (1 - alignT) + er * alignT);
+        const rg = Math.round(sg * (1 - alignT) + eg * alignT);
+        const rb = Math.round(sb * (1 - alignT) + eb * alignT);
+        ctx.strokeStyle = `rgb(${rr},${rg},${rb})`;
         ctx.beginPath();
-        const step = w / displayBuffer.length;
-        for (let i=0;i<displayBuffer.length;i++){
-          const v = displayBuffer[i]; // -1..1
-          const y = (1 - (v * 0.5 + 0.5)) * h; // map -1..1 to 0..h (invert for visual)
+
+        // Zoom horizontally by 2: show half the number of crests (skip every-other sample)
+        const samples = Math.max(1, Math.floor(displayBuffer.length / 2));
+        const step = w / samples;
+        const amplitudeFactor = 2; // double crest height relative to original
+        const amp = 0.5 * amplitudeFactor; // original used 0.5
+
+        for (let i=0;i<samples;i++){
+          const idx = i * 2;
+          const v = displayBuffer[idx] || 0; // -1..1
+          const y = (1 - (v * amp + 0.5)) * h; // doubled crests when amp=1.0
           const x = i * step;
           if (i===0) ctx.moveTo(x, y);
           else ctx.lineTo(x, y);
