@@ -86,6 +86,7 @@
                           // Measured drifting chaos
       
       function toRad(v){ return v * Math.PI / 180; }
+      function toDeg(v){ return v * 180 / Math.PI; }
       function haversineMeters(lat1, lon1, lat2, lon2){
         const R = 6371000;
         const dLat = toRad(lat2 - lat1);
@@ -100,6 +101,18 @@
         const x = Math.cos(toRad(lat1))*Math.sin(toRad(lat2)) - Math.sin(toRad(lat1))*Math.cos(toRad(lat2))*Math.cos(toRad(lon2-lon1));
         const brng = (Math.atan2(y, x) * 180/Math.PI + 360) % 360;
         return brng;
+      }
+
+      // destination point given start lat/lon, bearing (deg) and distance (m)
+      function destinationPoint(lat, lon, bearingDeg, distanceMeters){
+        const R = 6371000;
+        const brng = toRad(bearingDeg);
+        const d = distanceMeters / R;
+        const lat1 = toRad(lat);
+        const lon1 = toRad(lon);
+        const lat2 = Math.asin(Math.sin(lat1)*Math.cos(d) + Math.cos(lat1)*Math.sin(d)*Math.cos(brng));
+        const lon2 = lon1 + Math.atan2(Math.sin(brng)*Math.sin(d)*Math.cos(lat1), Math.cos(d)-Math.sin(lat1)*Math.sin(lat2));
+        return { lat: toDeg(lat2), lon: toDeg(lon2) };
       }
 
       // Helper function
@@ -132,6 +145,10 @@
         }
       }
 
+      // Prediction state: remember last good GPS fix for prediction between updates
+      let lastGpsFix = null; // {lat, lon, time (s), speed (m/s), heading (deg)}
+      const MAX_PREDICT_INTERVAL = 5.0; // seconds: only predict up to this far beyond last fix
+
       function updateSensorFromSensorsModule(){
         try{
           if (window.Sensors && Sensors.gps && Sensors.gps.lat != null){
@@ -139,53 +156,85 @@
             const lon = Sensors.gps.lon;
             const speed = (Sensors.gps.speed != null) ? Sensors.gps.speed : 0;
 
-            const dist = haversineMeters(lat, lon, TARGET.lat, TARGET.lon);
-            sensor.distance = dist;
-
-            if (dist < FIRST){
-              sensor.closeness = clamp01(1 - Math.min(1.0, (dist - CENTER) / (FIRST - CENTER)));
-            } else if (dist < SECOND){
-              sensor.closeness = clamp01(1 - Math.min(1.0, (dist - FIRST) / (SECOND - FIRST)));
-            } else if (dist < THIRD){
-              sensor.closeness = clamp01(1 - Math.min(1.0, (dist - SECOND) / (THIRD - SECOND)));
-            } else if (dist < FOURTH){
-              sensor.closeness = clamp01(1 - Math.min(1.0, (dist - THIRD) / (FOURTH - THIRD)));
-            } else if (dist < FIFTH){
-              sensor.closeness = clamp01(1 - Math.min(1.0, (dist - FOURTH) / (FIFTH - FOURTH)));
-            } else if (dist < OUTER){
-              sensor.closeness = clamp01(1 - Math.min(1.0, (dist - FIFTH) / (OUTER - FIFTH)));
-            } else {
-              sensor.closeness = 0;
-              }
-
-            sensor.speed = Math.max(0, speed);
-
+            // Determine heading from orientation / gps if possible
             let heading = null;
             if (Sensors.orientation && Sensors.orientation.heading != null){
               heading = Sensors.orientation.heading;
             } else if (Sensors.gps && Sensors.gps.heading != null){
               heading = Sensors.gps.heading;
-            }
-
-            if (heading == null){
-              if (lastPos){
-                const eps = 1e-6;
-                if (Math.abs(lastPos.lat - lat) > eps || Math.abs(lastPos.lon - lon) > eps){
-                  heading = bearingTo(lastPos.lat, lastPos.lon, lat, lon);
-                }
+            } else if (lastPos){
+              const eps = 1e-6;
+              if (Math.abs(lastPos.lat - lat) > eps || Math.abs(lastPos.lon - lon) > eps){
+                heading = bearingTo(lastPos.lat, lastPos.lon, lat, lon);
               }
             }
 
-            const targetBearing = bearingTo(lat, lon, TARGET.lat, TARGET.lon);
-            if (heading == null){
-              sensor.courseAlignment = 0.5;
-            } else {
-              let delta = Math.abs(((heading - targetBearing + 540) % 360) - 180);
-              const deltaRad = delta * Math.PI/180;
-              sensor.courseAlignment = Math.max(0, (1 + Math.cos(deltaRad)) / 2);
+            const now = performance.now() / 1000;
+            // Update lastGpsFix when we have a fresh measurement (or when we don't have one yet)
+            const isNewFix = !lastGpsFix || Math.abs(lastGpsFix.lat - lat) > 1e-7 || Math.abs(lastGpsFix.lon - lon) > 1e-7 || Math.abs((lastGpsFix.time||0) - now) > 0.5;
+            if (isNewFix){
+              lastGpsFix = { lat, lon, time: now, speed: speed || 0, heading: heading };
             }
 
-            lastPos = { lat, lon };
+            // Predict current position from lastGpsFix + elapsed time, using last heading & speed
+            let predLat = lat;
+            let predLon = lon;
+            let predSpeed = speed || 0;
+
+            const elapsed = now - (lastGpsFix.time || now);
+            if (elapsed > 0 && lastGpsFix && lastGpsFix.speed && lastGpsFix.heading != null){
+              // only predict up to MAX_PREDICT_INTERVAL seconds
+              const dt = Math.min(elapsed, MAX_PREDICT_INTERVAL);
+              const predDist = lastGpsFix.speed * dt; // meters
+              const dest = destinationPoint(lastGpsFix.lat, lastGpsFix.lon, lastGpsFix.heading, predDist);
+              predLat = dest.lat; predLon = dest.lon; predSpeed = lastGpsFix.speed;
+            }
+
+            // Fallback: if no heading, try to predict using movement vector from lastPos
+            if (elapsed > 0 && lastGpsFix && (!lastGpsFix.heading || !isFinite(lastGpsFix.heading)) && lastPos){
+              const eps = 1e-6;
+              if (Math.abs(lastPos.lat - lastGpsFix.lat) > eps || Math.abs(lastPos.lon - lastGpsFix.lon) > eps){
+                const inferredHeading = bearingTo(lastPos.lat, lastPos.lon, lastGpsFix.lat, lastGpsFix.lon);
+                const dt = Math.min(elapsed, MAX_PREDICT_INTERVAL);
+                const predDist = (lastGpsFix.speed || 0) * dt;
+                const dest = destinationPoint(lastGpsFix.lat, lastGpsFix.lon, inferredHeading, predDist);
+                predLat = dest.lat; predLon = dest.lon; predSpeed = lastGpsFix.speed || 0;
+              }
+            }
+
+            const dist = haversineMeters(predLat, predLon, TARGET.lat, TARGET.lon);
+            sensor.distance = dist;
+
+            // compute closeness from predicted distance
+            sensor.closeness = computeClosenessFromDistance(dist);
+
+            sensor.speed = Math.max(0, predSpeed);
+
+            // compute courseAlignment using predicted position + heading if available
+            if (lastGpsFix && lastGpsFix.heading != null){
+              const targetBearing = bearingTo(predLat, predLon, TARGET.lat, TARGET.lon);
+              let delta = Math.abs(((lastGpsFix.heading - targetBearing + 540) % 360) - 180);
+              const deltaRad = delta * Math.PI/180;
+              sensor.courseAlignment = Math.max(0, (1 + Math.cos(deltaRad)) / 2);
+            } else {
+              // no heading available; fall back to 0.5 or compute from movement vector
+              if (lastPos){
+                const targetBearing = bearingTo(predLat, predLon, TARGET.lat, TARGET.lon);
+                const movementHeading = bearingTo(lastPos.lat, lastPos.lon, predLat, predLon);
+                if (isFinite(movementHeading)){
+                  let delta = Math.abs(((movementHeading - targetBearing + 540) % 360) - 180);
+                  const deltaRad = delta * Math.PI/180;
+                  sensor.courseAlignment = Math.max(0, (1 + Math.cos(deltaRad)) / 2);
+                } else {
+                  sensor.courseAlignment = 0.5;
+                }
+              } else {
+                sensor.courseAlignment = 0.5;
+              }
+            }
+
+            // remember lastPos for next iteration
+            lastPos = { lat: predLat, lon: predLon };
             return;
           }
         }catch(e){ console.warn('sensor mapping failed', e); }
@@ -224,6 +273,7 @@
       let rafId = null;
 
       const speedVolumeScaleFactor = 0.06;
+      const RAMP_SECONDS = 1.0; // increase ramp time to smooth jumps between GPS updates
 
       // --- Test mode: spacebar-driven spoofing of distance -----
       let testMode = false;
@@ -344,7 +394,7 @@
         const dist = (sensor.distance != null && isFinite(sensor.distance)) ? sensor.distance : Infinity;
 
         const targetMasterVolume = Math.min(0.8, sensor.speed * speedVolumeScaleFactor);
-        masterGain.gain.linearRampToValueAtTime(targetMasterVolume, audioCtx.currentTime + 0.1);
+        masterGain.gain.linearRampToValueAtTime(targetMasterVolume, audioCtx.currentTime + RAMP_SECONDS);
 
         for (let i=0;i<8;i++){
           let targetFreq;
@@ -382,15 +432,15 @@
           }
 
           try{
-            sineOsc[i].frequency.linearRampToValueAtTime(targetFreq, audioCtx.currentTime + 0.1);
+            sineOsc[i].frequency.linearRampToValueAtTime(targetFreq, audioCtx.currentTime + RAMP_SECONDS);
           }catch(e){}
 
           // Sine track rises with courseAlignment; noise background (squareGain) uses (1 - courseAlignment)
           const sineTargetVolume = voiceGains[i] * sensor.courseAlignment;
           const noiseTargetVolume = voiceGains[i] * (1.0 - sensor.courseAlignment);
 
-          sineGain[i].gain.linearRampToValueAtTime(sineTargetVolume, audioCtx.currentTime + 0.1);
-          squareGain[i].gain.linearRampToValueAtTime(noiseTargetVolume, audioCtx.currentTime + 0.1);
+          sineGain[i].gain.linearRampToValueAtTime(sineTargetVolume, audioCtx.currentTime + RAMP_SECONDS);
+          squareGain[i].gain.linearRampToValueAtTime(noiseTargetVolume, audioCtx.currentTime + RAMP_SECONDS);
         }
 
         // update HUD (if visible) with distance in meters
