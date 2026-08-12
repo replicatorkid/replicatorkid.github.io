@@ -283,8 +283,8 @@
           sineOsc[i] = sOsc; sineGain[i] = sGain;
 
           const qOsc = audioCtx.createOscillator();
-          qOsc.type = 'square';
-          qOsc.frequency.setValueAtTime(startFreq, audioCtx.currentTime);
+          qOsc.type = 'sawtooth';
+          qOsc.frequency.setValueAtTime(randFloat(200,3200), audioCtx.currentTime);
           const qGain = audioCtx.createGain();
           qGain.gain.setValueAtTime(0, audioCtx.currentTime);
           qOsc.connect(qGain);
@@ -368,7 +368,7 @@
 
           try{
             sineOsc[i].frequency.linearRampToValueAtTime(targetFreq, audioCtx.currentTime + 0.1);
-            squareOsc[i].frequency.linearRampToValueAtTime(targetFreq, audioCtx.currentTime + 0.1);
+            //squareOsc[i].frequency.linearRampToValueAtTime(targetFreq, audioCtx.currentTime + 0.1);
           }catch(e){}
 
           const sineTargetVolume = voiceGains[i] * sensor.courseAlignment;
