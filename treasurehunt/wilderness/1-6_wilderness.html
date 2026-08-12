@@ -435,9 +435,15 @@
             sineOsc[i].frequency.linearRampToValueAtTime(targetFreq, audioCtx.currentTime + RAMP_SECONDS);
           }catch(e){}
 
-          // Sine track rises with courseAlignment; noise background (squareGain) uses (1 - courseAlignment)
-          const sineTargetVolume = voiceGains[i] * sensor.courseAlignment;
-          const noiseTargetVolume = voiceGains[i] * (1.0 - sensor.courseAlignment);
+          // Inside FIRST, sine is full and noise is silent.
+          // Outside FIRST, sine track rises with courseAlignment; noise background (squareGain) uses (1 - courseAlignment)
+          if (dist < FIRST){
+            const sineTargetVolume = voiceGains[i] * 1;
+            const noiseTargetVolume = voiceGains[i] * 0;
+          } else {
+            const sineTargetVolume = voiceGains[i] * sensor.courseAlignment;
+            const noiseTargetVolume = voiceGains[i] * (1.0 - sensor.courseAlignment);
+          }
 
           sineGain[i].gain.linearRampToValueAtTime(sineTargetVolume, audioCtx.currentTime + RAMP_SECONDS);
           squareGain[i].gain.linearRampToValueAtTime(noiseTargetVolume, audioCtx.currentTime + RAMP_SECONDS);
