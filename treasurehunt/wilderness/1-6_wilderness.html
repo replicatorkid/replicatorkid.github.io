@@ -273,7 +273,7 @@
       let sensorInterval = null;
       let rafId = null;
 
-      const speedVolumeScaleFactor = 0.06;
+      const speedVolumeScaleFactor = 0.2;
       const RAMP_SECONDS = 1.0; // increase ramp time to smooth jumps between GPS updates
 
       // --- Test mode: spacebar-driven spoofing of distance -----
@@ -444,8 +444,8 @@
             sineTargetVolume = voiceGains[i] * 1;
             noiseTargetVolume = voiceGains[i] * 0;
           } else {
-            sineTargetVolume = voiceGains[i] * sensor.courseAlignment;
-            noiseTargetVolume = voiceGains[i] * (1.0 - sensor.courseAlignment);
+            sineTargetVolume = voiceGains[i] * (sensor.courseAlignment + 0.2);
+            noiseTargetVolume = voiceGains[i] * (1.0 - sensor.courseAlignment - 0.2);
           }
           
           sineGain[i].gain.linearRampToValueAtTime(sineTargetVolume, audioCtx.currentTime + RAMP_SECONDS);
