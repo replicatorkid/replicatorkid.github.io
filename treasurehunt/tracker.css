@@ -1,0 +1,56 @@
+/* Container that resets styles to guarantee a sharp white box */
+.universal-tracker-box {
+    background: #ffffff !important;
+    padding: 30px !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+    max-width: 400px !important;
+    margin: 20px auto !important;
+    text-align: center !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+    color: #333333 !important;
+}
+
+/* Large, prominent, non-distracting start button */
+.universal-tracker-box .start-btn {
+    display: block !important;
+    width: 100% !important;
+    padding: 15px !important;
+    font-size: 1.2rem !important;
+    font-weight: bold !important;
+    background-color: #000000 !important; /* Sharp black button */
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 6px !important;
+    cursor: pointer !important;
+    margin-bottom: 20px !important;
+    transition: background 0.2s !important;
+}
+
+.universal-tracker-box .start-btn:hover {
+    background-color: #333333 !important;
+}
+
+/* Minimal text input container */
+.universal-tracker-box .input-group {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    font-size: 0.95rem !important;
+}
+
+.universal-tracker-box .team-input {
+    border: none !important;
+    border-bottom: 2px solid #cccccc !important;
+    padding: 4px 8px !important;
+    font-size: 0.95rem !important;
+    outline: none !important;
+    width: 150px !important;
+    background: transparent !important;
+    color: #333333 !important;
+}
+
+.universal-tracker-box .team-input:focus {
+    border-bottom-color: #000000 !important;
+}
