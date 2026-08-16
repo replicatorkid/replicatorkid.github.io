@@ -2,7 +2,8 @@
     // 1. Automatically inject the stylesheet into the page header
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = '/tracker.css'; // Adjust path if hosted in a subfolder
+    // Change this line inside your tracker.js file:
+    link.href = '/treasurehunt/tracker.css'; 
     document.head.appendChild(link);
 
     // 2. Wait for the page structure to load, then build the interface
