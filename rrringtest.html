@@ -1,209 +1,57 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Treasure Hunt Start</title>
-
-<style>
-    body {
-        font-family: sans-serif;
-        text-align: center;
-        padding: 40px 20px;
-        background: white;
-    }
-
-    input {
-        font-size: 20px;
-        padding: 10px;
-        width: 80%;
-        max-width: 350px;
-        text-align: center;
-    }
-
-    button {
-        display: block;
-        margin: 25px auto;
-        padding: 15px 40px;
-        font-size: 20px;
-    }
-
-    #status {
-        margin-top: 20px;
-    }
-
-    #debug {
-        margin: 20px auto;
-        text-align: left;
-        max-width: 800px;
-        white-space: pre-wrap;
-        background: #f6f8fa;
-        border: 1px solid #ddd;
-        padding: 12px;
-        font-family: monospace;
-        font-size: 13px;
-        overflow-x: auto;
-    }
-
-    .muted {
-        color: #666;
-        font-size: 13px;
-    }
-</style>
+    <meta charset="UTF-8">
+    <title>Team Progress Tracker</title>
 </head>
-
 <body>
 
-<div id="startScreen">
+    <!-- Simple inputs based on your scenario -->
+    <h2>Welcome</h2>
+    <label for="nameInput">Enter your name:</label>
+    <input type="text" id="nameInput" placeholder="Your Name">
+    <button id="startButton">Start</button>
 
-    <h1>Treasure Hunt</h1>
-
-    <p>Enter your team name:</p>
-
-    <input id="teamName" type="text" autocomplete="off">
-
-    <button onclick="startHunt()">START</button>
-
-    <div id="status"></div>
-
-    <div id="debug" style="display:none;"></div>
-
-</div>
-
-<script>
-
-const RRRING_URL = "https://rrring.cloud/w/6zTxS3hLrBC4IjvNo4Nhe5xBtlMucmDeMvr9Xm4w";
-const CLUE_NAME = "RRRing Test";
-
-function showDebug(obj) {
-    const debug = document.getElementById('debug');
-    debug.style.display = 'block';
-    debug.textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2);
-}
-
-async function startHunt() {
-
-    const team = document.getElementById("teamName").value.trim();
-    const status = document.getElementById("status");
-    const debug = document.getElementById("debug");
-
-    if (!team) {
-        status.textContent = "Please enter your team name.";
-        return;
-    }
-
-    status.textContent = "Starting...";
-    debug.style.display = 'none';
-    debug.textContent = '';
-
-    const payload = {
-        title: "TREASURE HUNT",
-        body: `${team} started ${CLUE_NAME}`,
-        url: window.location.href
-    };
-
-    // Show what we're about to send
-    showDebug({
-        note: "Request payload (what the page will POST):",
-        payload
-    });
-
-    try {
-
-        const response = await fetch(RRRING_URL, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(payload)
-        });
-
-        // Build a detailed view including status, headers, and body (when readable)
-        const details = {
-            ok: response.ok,
-            status: response.status,
-            statusText: response.statusText,
-            url: response.url || RRRING_URL
-        };
-
-        // Try to collect headers (may be empty / restricted by CORS)
-        try {
-            const hdrs = {};
-            response.headers.forEach((v, k) => { hdrs[k] = v; });
-            details.headers = hdrs;
-        } catch (hh) {
-            details.headers = "[unavailable: CORS may restrict headers]";
-        }
-
-        // Try to read body as text, then parse JSON if possible
-        try {
-            const text = await response.text();
-            try {
-                details.body = JSON.parse(text);
-            } catch (e) {
-                details.body = text;
+    <script>
+        document.getElementById('startButton').addEventListener('click', function() {
+            const nameField = document.getElementById('nameInput').value.trim();
+            
+            // Basic validation check
+            if (!nameField) {
+                alert('Please enter a name first!');
+                return;
             }
-        } catch (readErr) {
-            details.body = "[unreadable: response.text() failed — possibly opaque response due to CORS]";
-        }
 
-        // Update status and debug output
-        if (response.ok) {
-            status.textContent = "Started!";
-        } else {
-            status.textContent = "Notification sent but returned non-OK status.";
-        }
+            // 1. Package the data neatly
+            const payload = {
+                name: nameField,
+                page: window.location.href, // Automatically captures current URL
+                time: new Date().toLocaleTimeString() // Captures local timestamp
+            };
 
-        showDebug({
-            note: "Request payload (sent)",
-            payload,
-            note_response: "Response details (as much as the browser allows):",
-            response: details
+            // 2. Put your public Cloudflare Worker URL here
+            const cloudflareWorkerUrl = "https://workers.dev";
+
+            // 3. Fire the request over to Cloudflare
+            fetch(cloudflareWorkerUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(response => {
+                if (response.ok) {
+                    console.log("Progress logged successfully!");
+                    // You can redirect them or change the page state here
+                } else {
+                    console.error("Failed to log progress.");
+                }
+            })
+            .catch(error => {
+                console.error("Network error encountered:", error);
+            });
         });
-
-    } catch (error) {
-
-        // Typical errors here include network errors or CORS blocking the request entirely.
-        console.error(error);
-
-        status.textContent =
-            "Notification failed, but continuing...";
-
-        // Show error and the payload we tried to send
-        showDebug({
-            note: "Fetch threw an exception while trying to POST. This usually means a network/CORS issue.",
-            error: {
-                message: error && error.message,
-                stack: error && error.stack
-            },
-            payload
-        });
-    }
-
-    // This is where your real clue would begin.
-    // For this test, just replace the screen.
-
-    document.getElementById("startScreen").innerHTML = `
-        <h1>You're In!</h1>
-        <p>Team: ${team}</p>
-        <p>This is where the clue begins.</p>
-        <p class="muted">Below are details of the notification attempt (visible on this page).</p>
-        <div id="debug-container"></div>
-    `;
-
-    // Move the debug content into the new screen so it's visible after we replace the startScreen
-    const oldDebug = debug.textContent;
-    const debugContainer = document.querySelector('#debug-container');
-    debugContainer && (debugContainer.textContent = oldDebug);
-
-    // Helpful hint about opaque responses
-    const hint = document.createElement('p');
-    hint.className = 'muted';
-    hint.textContent = "If response details are blank or show an 'opaque' or CORS-related message, you may need to enable CORS on the webhook endpoint or proxy the request through a server you control.";
-    debugContainer && debugContainer.appendChild(hint);
-}
-
-</script>
-
+    </script>
 </body>
 </html>
