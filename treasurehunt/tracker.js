@@ -34,7 +34,7 @@
                 <button class="start-btn" id="universalStartBtn">START</button>
                 <div class="input-group">
                     <label for="universalTeamInput">Team Name :</label>
-                    <input type="text" id="universalTeamInput" class="team-input" placeholder="______">
+                    <input type="text" id="universalTeamInput" class="team-input">
                 </div>
             </div>
         `;
