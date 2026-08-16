@@ -18,17 +18,17 @@ export default {
         const data = await request.json();
         
         // Extract variables (with fallback text if missing)
-        const name = data.name || "Unknown User";
-        const page = data.page || "Unknown Page";
-        const time = data.time || new Date().toISOString();
+        const name = data.name || "Unknown Team";
+        const filename = data.filename || "unknown_page";
+        const time = data.time || new Date().toLocaleTimeString();
 
         // 3. Format the message exactly how rrring.cloud expects it
         const rrringPayload = {
           title: "Team Progress Update",
-          body: `${name} opened ${page} and clicked Start at ${time}.`
+          body: `${name} opened ${filename} at ${time}.`
         };
 
-        // REPLACE THIS URL WITH YOUR ACTUAL SECRET RRRING WEBHOOK URL
+        // Get the webhook URL from environment variable
         const RRRING_WEBHOOK_URL = env.RRRING_URL;
         
         // 4. Forward the data to rrring.cloud (Server-to-Server, bypasses CORS)
