@@ -29,8 +29,8 @@ export default {
         };
 
         // REPLACE THIS URL WITH YOUR ACTUAL SECRET RRRING WEBHOOK URL
-        const RRRING_WEBHOOK_URL = "https://rrring.cloud/w/6zTxS3hLrBC4IjvNo4Nhe5xBtlMucmDeMvr9Xm4w";
-
+        const RRRING_WEBHOOK_URL = env.RRRING_URL;
+        
         // 4. Forward the data to rrring.cloud (Server-to-Server, bypasses CORS)
         const rrringResponse = await fetch(RRRING_WEBHOOK_URL, {
           method: "POST",
