@@ -273,6 +273,7 @@
       const squareGain = new Array(8);
       let noiseSource = null;
       let noiseBuffer = null;
+      let noiseFilter = null; // lowpass to tame the spectrum
 
       let sensorInterval = null;
       let rafId = null;
@@ -346,20 +347,35 @@
           squareGain[i] = qGain;
         }
 
-        // Create a looping white-noise buffer and a single BufferSource that feeds all squareGain nodes.
-        // This replaces the previous sawtooth/square oscillator track.
+        // Create a looping brown-noise buffer (integrated white noise) and a single BufferSource that feeds all squareGain nodes.
+        // This replaces the previous bright white-noise buffer with a darker, "brown" spectrum.
         const sampleRate = audioCtx.sampleRate;
         const bufferLen = sampleRate * 2; // 2 seconds of noise
         noiseBuffer = audioCtx.createBuffer(1, bufferLen, sampleRate);
         const data = noiseBuffer.getChannelData(0);
-        for (let i = 0; i < bufferLen; i++) data[i] = (Math.random() * 2 - 1) * 0.25; // keep noise level modest
+        // generate brown-ish noise by integrating small white steps
+        let lastOut = 0;
+        for (let i = 0; i < bufferLen; i++){
+          // small white component, integrated to produce brown/pink-like rolloff
+          const white = (Math.random() * 2 - 1) * 0.02;
+          lastOut = (lastOut + white) / 1.02;
+          data[i] = lastOut * 0.5; // scale to a comfortable level
+        }
 
         noiseSource = audioCtx.createBufferSource();
         noiseSource.buffer = noiseBuffer;
         noiseSource.loop = true;
-        // connect the noise source to every square gain node
+
+        // create a single lowpass filter to mellow the noise; we'll modulate cutoff in dspPoll
+        noiseFilter = audioCtx.createBiquadFilter();
+        noiseFilter.type = 'lowpass';
+        noiseFilter.frequency.setValueAtTime(800, audioCtx.currentTime); // initial cutoff
+        noiseFilter.Q.setValueAtTime(0.7, audioCtx.currentTime);
+
+        // connect the noise source through the filter to every square gain node
+        noiseSource.connect(noiseFilter);
         for (let i=0;i<8;i++){
-          noiseSource.connect(squareGain[i]);
+          noiseFilter.connect(squareGain[i]);
         }
 
         masterGain.connect(analyser);
@@ -454,6 +470,17 @@
           
           sineGain[i].gain.linearRampToValueAtTime(sineTargetVolume, audioCtx.currentTime + RAMP_SECONDS);
           squareGain[i].gain.linearRampToValueAtTime(noiseTargetVolume, audioCtx.currentTime + RAMP_SECONDS);
+        }
+
+        // Modulate noise filter cutoff to make the noise darker as you get closer.
+        // When far -> brighter (higher cutoff). When near -> darker (lower cutoff).
+        if (noiseFilter){
+          const farCutoff = 800; // Hz when distant (brighter)
+          const nearCutoff = 200; // Hz when close (darker)
+          const cutoff = nearCutoff + (1 - (sensor.closeness || 0)) * (farCutoff - nearCutoff);
+          try{
+            noiseFilter.frequency.linearRampToValueAtTime(cutoff, audioCtx.currentTime + RAMP_SECONDS);
+          }catch(e){}
         }
 
         // update HUD (if visible) with distance in meters
