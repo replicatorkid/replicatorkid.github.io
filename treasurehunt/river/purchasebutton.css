@@ -1,1 +1,44 @@
+/* Styles for the ITEM ACQUIRED button to visually match the CRT/monospace style
+   used in the river puzzles (1_culvert.html). Placed under the marquee.
+*/
+.purchase-button-container {
+    text-align: center;
+    margin-top: 18px;
+}
 
+#purchaseAcquireBtn {
+    font-family: Consolas, "Courier New", monospace;
+    background: transparent;
+    color: #44ff44; /* same green as the marquee */
+    border: 2px solid rgba(68,255,68,0.9);
+    padding: 12px 22px;
+    font-size: 20px;
+    font-weight: bold;
+    border-radius: 6px;
+    cursor: pointer;
+    text-shadow: 0 0 8px #00ff00;
+    box-shadow: 0 0 18px rgba(0,255,0,0.06);
+    transition: all 160ms ease-in-out;
+}
+
+#purchaseAcquireBtn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 0 24px rgba(0,255,0,0.12);
+}
+
+#purchaseAcquireBtn:disabled {
+    opacity: 0.35;
+    cursor: default;
+    color: #777;
+    border-color: #444;
+    text-shadow: none;
+    box-shadow: none;
+}
+
+/* Small helper to match page centering and spacing */
+.purchase-button-note {
+    margin-top:8px;
+    color:#66ff66;
+    font-family: Consolas, "Courier New", monospace;
+    font-size:12px;
+}
