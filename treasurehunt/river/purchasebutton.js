@@ -104,15 +104,23 @@
 
             const messageText = `${teamName} acquired item at ${timeString}.`;
 
+            // IMPORTANT: include "name" so the worker sees the same field tracker uses
             const payload = {
                 message: messageText,
+                name: teamName,
                 team: teamName,
                 filename: filename,
                 time: timeString,
                 event: 'item_acquired'
             };
 
-            // Send POST to Cloudflare Worker
+            console.log('Sending acquisition payload:', payload);
+
+            // Optimistically disable to prevent double-clicks, re-enable on failure
+            btn.disabled = true;
+            const previousText = btn.textContent;
+            btn.textContent = 'SENDING...';
+
             fetch(cloudflareWorkerUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -120,19 +128,23 @@
             })
             .then(res => {
                 if (res.ok) {
-                    // visually disable the button to prevent repeat sends
-                    btn.disabled = true;
+                    // keep the button disabled and show success state
                     btn.textContent = 'ITEM ACQUIRED';
-                    // optional minor visual feedback
                     btn.style.opacity = '0.7';
                     console.log('Acquisition notification sent:', messageText);
                 } else {
+                    // restore and show error
+                    btn.disabled = false;
+                    btn.textContent = previousText;
                     return res.text().then(t => { throw new Error(t || res.statusText); });
                 }
             })
             .catch(err => {
                 console.error('Error sending acquisition notification:', err);
                 alert('Error sending acquisition notification. Please try again.');
+                // re-enable so user can retry
+                btn.disabled = false;
+                btn.textContent = previousText;
             });
         });
     });
