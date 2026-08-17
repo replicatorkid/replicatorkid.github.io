@@ -60,6 +60,14 @@
                 return;
             }
 
+            // Persist the team name immediately so other scripts (e.g., purchasebutton)
+            // can read it even if the worker response hasn't returned yet.
+            try {
+                localStorage.setItem('treasureTeamName', teamName);
+            } catch (e) {
+                // Ignore storage errors (private mode, quotas)
+            }
+
             // Extract the filename without extension
             const pathParts = window.location.pathname.split('/');
             const filename = pathParts[pathParts.length - 1].replace(/\.[^/.]+$/, '');
@@ -90,12 +98,6 @@
             .then(response => {
                 if (response.ok) {
                     console.log("Progress logged!");
-                    // Persist the team name locally for other scripts (e.g., purchase button)
-                    try {
-                        localStorage.setItem('treasureTeamName', teamName);
-                    } catch (e) {
-                        // Ignore storage errors (private mode, quotas)
-                    }
                     // Remove the overlay completely to reveal the page
                     overlay.remove();
                     // Clean up the target container
