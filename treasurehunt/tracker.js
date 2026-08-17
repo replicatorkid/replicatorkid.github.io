@@ -90,6 +90,12 @@
             .then(response => {
                 if (response.ok) {
                     console.log("Progress logged!");
+                    // Persist the team name locally for other scripts (e.g., purchase button)
+                    try {
+                        localStorage.setItem('treasureTeamName', teamName);
+                    } catch (e) {
+                        // Ignore storage errors (private mode, quotas)
+                    }
                     // Remove the overlay completely to reveal the page
                     overlay.remove();
                     // Clean up the target container
