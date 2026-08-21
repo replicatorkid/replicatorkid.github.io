@@ -470,14 +470,14 @@
 
         // Modulate noise filter cutoff to get a middle-ground spectral behaviour.
         // Far => brighter (higher cutoff); Near => darker (lower cutoff), but ranges are milder than full-brown version.
-        if (noiseFilter){
-          const farCutoff = 2200; // Hz when distant (brighter)
-          const nearCutoff = 400; // Hz when close (darker)
-          const cutoff = nearCutoff + (1 - (sensor.closeness || 0)) * (farCutoff - nearCutoff);
-          try{
-            noiseFilter.frequency.linearRampToValueAtTime(cutoff, audioCtx.currentTime + RAMP_SECONDS);
-          }catch(e){}
-        }
+        //if (noiseFilter){
+          //const farCutoff = 2200; // Hz when distant (brighter)
+          //const nearCutoff = 400; // Hz when close (darker)
+          //const cutoff = nearCutoff + (1 - (sensor.closeness || 0)) * (farCutoff - nearCutoff);
+          //try{
+            //noiseFilter.frequency.linearRampToValueAtTime(cutoff, audioCtx.currentTime + RAMP_SECONDS);
+          //}catch(e){}
+        //}
 
         // update HUD (if visible) with distance in meters
         if (hud.style.display !== 'none'){
