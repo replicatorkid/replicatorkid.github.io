@@ -269,6 +269,7 @@
       const squareGain = new Array(8);
       let noiseSource = null;
       let noiseBuffer = null;
+      let noiseLowPassFilter = null;
 
       let sensorInterval = null;
       let rafId = null;
@@ -353,9 +354,17 @@
         noiseSource = audioCtx.createBufferSource();
         noiseSource.buffer = noiseBuffer;
         noiseSource.loop = true;
-        // connect the noise source to every square gain node
+
+        // Create low-pass filter to limit harsh high frequencies (cutoff at 4kHz)
+        noiseLowPassFilter = audioCtx.createBiquadFilter();
+        noiseLowPassFilter.type = 'lowpass';
+        noiseLowPassFilter.frequency.setValueAtTime(4000, audioCtx.currentTime);
+        noiseLowPassFilter.Q.setValueAtTime(1, audioCtx.currentTime);
+
+        // Connect noise source through filter, then to all square gain nodes
+        noiseSource.connect(noiseLowPassFilter);
         for (let i=0;i<8;i++){
-          noiseSource.connect(squareGain[i]);
+          noiseLowPassFilter.connect(squareGain[i]);
         }
 
         masterGain.connect(analyser);
