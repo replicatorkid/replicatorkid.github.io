@@ -1,0 +1,1 @@
+//This file will be included in each webpage and will handle reading from and writing to localstorage on behalf of each of the other pages, and will also post to the CF worker on behalf of the other pages.
