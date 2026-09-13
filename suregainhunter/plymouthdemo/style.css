@@ -1,0 +1,376 @@
+/*
+ * style.css
+ *
+ * COMMON VISUAL STYLE FOR THE TREASURE HUNT
+ *
+ * DESIGN PRINCIPLES — DOS AND DON'TS
+ *
+ * DO:
+ *   - Use a plain white background and black text.
+ *   - Use Baskerville as the sole typeface throughout the hunt.
+ *   - Prioritize readability on mobile phones.
+ *   - Allow and expect vertical scrolling.
+ *   - Use whitespace to establish hierarchy and separate ideas.
+ *   - Keep typography restrained: normally no more than three
+ *     different text sizes on a single page.
+ *   - Make buttons and form controls large enough to use comfortably
+ *     with a finger.
+ *   - Keep important information on the page rather than in
+ *     pop-up or modal dialogs.
+ *   - Use simple borders and typography rather than decoration
+ *     to establish visual structure.
+ *   - Reuse existing styles and classes when they fit.
+ *   - Add page-specific CSS only when a page genuinely requires
+ *     something unusual.
+ *
+ * DON'T:
+ *   - Introduce additional fonts.
+ *   - Use decorative colors merely for appearance.
+ *   - Use gradients, elaborate shadows, or excessive rounded cards.
+ *   - Turn the hunt into a conventional modern "web app" aesthetic.
+ *   - Cram content onto the screen merely to avoid scrolling.
+ *   - Create a new visual treatment for every individual page.
+ *   - Use pop-ups or confirmation boxes when an in-page message
+ *     can accomplish the same thing.
+ *   - Assume a particular phone model or screen aspect ratio.
+ *   - Allow horizontal scrolling.
+ *
+ * GENERAL AESTHETIC:
+ *   Clean, formal, literary, and restrained.
+ *   Think "well-made field notebook" rather than "web application."
+ *
+ * ================================================================
+ */
+
+
+/* ---------------------------------------------------------------
+   BASIC PAGE FOUNDATION
+   --------------------------------------------------------------- */
+
+/*
+ * Makes width calculations predictable.
+ * Padding and borders are included in an element's declared width.
+ */
+* {
+    box-sizing: border-box;
+}
+
+/*
+ * Prevent accidental sideways scrolling on narrow phones.
+ */
+html {
+    overflow-x: hidden;
+}
+
+/*
+ * The page itself.
+ */
+body {
+    margin: 0;
+    padding: 24px 20px 90px;
+
+    background: white;
+    color: black;
+
+    font-family: Baskerville, "Baskerville Old Face", "Libre Baskerville", Georgia, serif;
+    font-size: 18px;
+    line-height: 1.5;
+
+    overflow-x: hidden;
+}
+
+
+/* ---------------------------------------------------------------
+   PAGE CONTENT
+   --------------------------------------------------------------- */
+
+/*
+ * Optional wrapper for the main body of a page.
+ *
+ * Keeps text from becoming excessively wide on larger screens
+ * while remaining comfortable on a phone.
+ */
+.page {
+    width: 100%;
+    max-width: 650px;
+    margin: 0 auto;
+}
+
+
+/* ---------------------------------------------------------------
+   TYPOGRAPHY
+   --------------------------------------------------------------- */
+
+/*
+ * Major page title.
+ */
+h1 {
+    margin: 0 0 24px;
+
+    font-size: 32px;
+    font-weight: normal;
+    line-height: 1.2;
+}
+
+/*
+ * Secondary heading.
+ */
+h2 {
+    margin: 32px 0 14px;
+
+    font-size: 24px;
+    font-weight: normal;
+    line-height: 1.25;
+}
+
+/*
+ * Normal paragraphs.
+ */
+p {
+    margin: 0 0 18px;
+}
+
+/*
+ * Use sparingly for information that is genuinely secondary.
+ */
+.small {
+    font-size: 15px;
+    line-height: 1.4;
+}
+
+
+/* ---------------------------------------------------------------
+   LINKS
+   --------------------------------------------------------------- */
+
+/*
+ * Links remain visibly identifiable as links.
+ */
+a {
+    color: black;
+    text-decoration: underline;
+}
+
+/*
+ * Remove the underline only while the user is actively interacting
+ * with the link. Keyboard focus remains clearly indicated.
+ */
+a:hover {
+    text-decoration: none;
+}
+
+a:focus-visible {
+    outline: 2px solid black;
+    outline-offset: 3px;
+}
+
+
+/* ---------------------------------------------------------------
+   BUTTONS
+   --------------------------------------------------------------- */
+
+/*
+ * Buttons should feel like part of the page rather than
+ * conventional colorful application controls.
+ */
+button {
+    display: inline-block;
+
+    padding: 11px 18px;
+
+    background: white;
+    color: black;
+
+    border: 1px solid black;
+    border-radius: 2px;
+
+    font-family: inherit;
+    font-size: 18px;
+    line-height: 1.2;
+
+    cursor: pointer;
+}
+
+/*
+ * A restrained indication that the button is being used.
+ */
+button:hover {
+    background: #f2f2f2;
+}
+
+button:active {
+    background: #e5e5e5;
+}
+
+button:focus-visible {
+    outline: 2px solid black;
+    outline-offset: 3px;
+}
+
+/*
+ * Disabled controls should still be readable, but should clearly
+ * appear unavailable.
+ */
+button:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+
+/* ---------------------------------------------------------------
+   FORM CONTROLS
+   --------------------------------------------------------------- */
+
+input,
+textarea,
+select {
+    max-width: 100%;
+
+    padding: 10px;
+
+    background: white;
+    color: black;
+
+    border: 1px solid black;
+    border-radius: 2px;
+
+    font-family: inherit;
+    font-size: 18px;
+    line-height: 1.3;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+    outline: 2px solid black;
+    outline-offset: 2px;
+}
+
+
+/* ---------------------------------------------------------------
+   COMMON HUNT ELEMENTS
+   --------------------------------------------------------------- */
+
+/*
+ * A block of clue material.
+ */
+.clue {
+    margin: 0 0 30px;
+}
+
+/*
+ * An area containing an answer field and/or answer controls.
+ */
+.answer {
+    margin: 30px 0;
+}
+
+/*
+ * For large numerical or instrument-style displays.
+ * Individual pages may override this when necessary.
+ */
+.instrument {
+    margin: 30px 0;
+
+    text-align: center;
+    font-size: 32px;
+    line-height: 1.2;
+}
+
+/*
+ * Ordinary in-page messages.
+ */
+.message {
+    margin: 20px 0;
+}
+
+/*
+ * Important information that needs to stand out without becoming
+ * a pop-up or decorative warning box.
+ */
+.warning {
+    margin: 20px 0;
+    padding: 12px 14px;
+
+    border: 1px solid black;
+}
+
+
+/* ---------------------------------------------------------------
+   NAVIGATION
+   --------------------------------------------------------------- */
+
+/*
+ * The hunt navigation remains visible while the player scrolls.
+ *
+ * It is intentionally simple: white, black, and text.
+ */
+.navigation {
+    position: fixed;
+    z-index: 1000;
+
+    left: 0;
+    bottom: 0;
+
+    width: 100%;
+
+    padding: 8px 10px;
+
+    background: white;
+    border-top: 1px solid black;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0;
+}
+
+/*
+ * Navigation links are given generous touch areas.
+ */
+.navigation a {
+    display: block;
+
+    padding: 8px 10px;
+
+    color: black;
+    text-decoration: none;
+
+    font-size: 16px;
+    line-height: 1.2;
+}
+
+.navigation a:hover {
+    text-decoration: underline;
+}
+
+.navigation a:focus-visible {
+    outline: 2px solid black;
+    outline-offset: -2px;
+}
+
+
+/* ---------------------------------------------------------------
+   MOBILE ADJUSTMENT
+   --------------------------------------------------------------- */
+
+/*
+ * The hunt is designed primarily for phones.
+ * On especially narrow screens, reduce side margins slightly.
+ */
+@media (max-width: 400px) {
+
+    body {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    h1 {
+        font-size: 30px;
+    }
+
+    .navigation a {
+        padding-left: 7px;
+        padding-right: 7px;
+    }
+}
