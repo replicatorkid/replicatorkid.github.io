@@ -4,46 +4,48 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Suregain Hunter — Lobby</title>
-  <style>
-    body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial; max-width: 720px; margin: 2rem auto; padding: 0 1rem; color: #111; }
-    header { text-align: left; margin-bottom: 1rem; }
-    h1 { margin: 0 0 0.5rem 0; }
-    p.notice { background:#fff6d6; border-left:4px solid #f0c36d; padding:0.6rem; }
-    label { display:block; margin:0.6rem 0 0.2rem; }
-    input[type="text"] { width:100%; padding:0.5rem; font-size:1rem; box-sizing:border-box; }
-    .buttons { margin-top:1rem; display:flex; gap:0.5rem; }
-    button { padding:0.6rem 1rem; font-size:1rem; }
-    .status { margin-top:1rem; color:#555; }
-    footer { margin-top:2rem; font-size:0.9rem; color:#666; }
-  </style>
+
+  <!-- Use the hunt's shared stylesheet for visual identity -->
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header>
-    <h1>Welcome!</h1>
-    <p>Do you have what it takes to get onto the leaderboard? These pages will take you on a trip around Plymouth. Follow them to their end to get to enter you name into the monthly leaderboard.</p>
-  </header>
+  <div class="page" role="main">
+    <header>
+      <h1>Welcome!</h1>
+      <p>Do you have what it takes to get onto the leaderboard? These pages will take you on a trip around Plymouth. Follow them to their end to get to enter your name into the monthly leaderboard.</p>
+    </header>
 
-  <section>
-    <p class="notice">These webpages require that you share your phone's GPS location with them. One of the clues requires this information to function. Also, I track hunter's movements and interactions with the webpages in order to better understand how to build a rewarding hunt. Thank you for you help!</p>
-  </section>
+    <section>
+      <p class="warning small">
+        These webpages require that you share your phone's GPS location with them. One of the clues requires this information to function. I also collect basic usage analytics and anonymised movement events for improving the hunt.
+      </p>
+    </section>
 
-  <section aria-labelledby="player"> 
-    <label for="hunterName">Hunter name (max 21 characters)</label>
-    <input id="hunterName" name="hunterName" type="text" maxlength="21" placeholder="Enter your hunter name" autocomplete="name">
+    <section aria-labelledby="player">
+      <label id="player" for="hunterName">Hunter name (max 21 characters)</label>
+      <input id="hunterName" name="hunterName" type="text" maxlength="21" placeholder="Enter your hunter name" autocomplete="name" />
 
-    <div class="buttons">
-      <button id="startBtn" type="button">Start Hunt</button>
-      <button id="resetBtn" type="button">Reset Saved Game</button>
-    </div>
+      <div class="answer buttons" style="margin-top: 18px;">
+        <button id="startBtn" type="button">Start Hunt</button>
+        <button id="resetBtn" type="button">Reset Saved Game</button>
+      </div>
 
-    <div class="status" id="status">Checking saved game...</div>
-  </section>
+      <div class="message status" id="status" aria-live="polite">Checking saved game...</div>
+    </section>
 
-  <footer>
-    <p>By starting you agree to share location data and usage analytics for this session.</p>
-  </footer>
+    <footer class="small">
+      <p>By starting you agree to share location data and usage analytics for this session.</p>
+    </footer>
+  </div>
 
-  <!-- The Manager module is used to create/load/reset game state. It's expected to be in the same directory. -->
+  <!-- Persistent navigation (keeps controls available while scrolling) -->
+  <nav class="navigation" aria-label="Hunt controls">
+    <!-- These mirror the in-page actions for easy access; JS wires them to the real buttons. -->
+    <a href="#" id="navStart" role="button">Start Hunt</a>
+    <a href="#" id="navReset" role="button">Reset</a>
+  </nav>
+
+  <!-- Manager module remains responsible for storage and state. -->
   <script src="manager.js"></script>
   <script>
     (function () {
@@ -56,6 +58,10 @@
       const resetBtn = $('resetBtn');
       const status = $('status');
 
+      // Mirror nav links to their corresponding buttons
+      const navStart = $('navStart');
+      const navReset = $('navReset');
+
       function safeHasState() {
         try { return Manager && typeof Manager.hasState === 'function' && Manager.hasState(HUNT_NAME); }
         catch (e) { return false; }
@@ -66,6 +72,9 @@
         const namePresent = nameInput.value.trim().length > 0;
         startBtn.disabled = has || !namePresent;
         resetBtn.disabled = !has;
+        // Keep nav links consistent and keyboard-accessible
+        navStart.setAttribute('aria-disabled', startBtn.disabled ? 'true' : 'false');
+        navReset.setAttribute('aria-disabled', resetBtn.disabled ? 'true' : 'false');
         status.textContent = has ? 'A saved game exists.' : 'No saved game.';
       }
 
@@ -128,6 +137,38 @@
         catch (err) {
           console.error(err);
           alert('Unable to reset saved game: ' + (err && err.message ? err.message : err));
+        }
+      });
+
+      // Nav link activations: trigger the corresponding buttons.
+      navStart.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        // If start is disabled, give a visible message instead of doing nothing
+        if (startBtn.disabled) {
+          if (safeHasState()) {
+            alert('A saved game already exists. Press Reset to clear it before starting a new session.');
+          } else {
+            alert('Please enter a hunter name (1-21 characters).');
+          }
+          return;
+        }
+        startBtn.click();
+      });
+
+      navReset.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        if (resetBtn.disabled) {
+          alert('No saved game to reset.');
+          return;
+        }
+        resetBtn.click();
+      });
+
+      // Keyboard: allow Enter on the name field to attempt start
+      nameInput.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter') {
+          ev.preventDefault();
+          if (!startBtn.disabled) startBtn.click();
         }
       });
 
