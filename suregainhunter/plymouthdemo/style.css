@@ -320,9 +320,11 @@ select:focus {
     border-top: 1px solid black;
 
     display: flex;
-    justify-content: center;
     align-items: center;
     gap: 0;
+
+    overflow-x: auto;
+    overflow-y: hidden;
 }
 
 /*
@@ -338,6 +340,8 @@ select:focus {
 
     font-size: 16px;
     line-height: 1.2;
+
+    white-space: nowrap;
 }
 
 .navigation a:hover {
