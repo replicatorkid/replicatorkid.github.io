@@ -39,13 +39,57 @@ const Manager = (function () {
     // ============================================================
 
     /*
-     * Construct the localStorage key for a hunt.
+     * Infer the hunt name from the current page URL.
+     *
+     * Example:
+     *     /suregainhunter/plymouthdemo/lobby.html -> plymouthdemo
+     *     /suregainhunter/plymouthdemo/index.html -> plymouthdemo
+     *     /suregainhunter/plymouthdemo/ -> plymouthdemo
+     */
+    function getCurrentHuntName() {
+
+        const path = window.location.pathname;
+
+        if (!path || path === "/") {
+            return "";
+        }
+
+        const segments = path.split("/").filter(Boolean);
+
+        if (segments.length === 0) {
+            return "";
+        }
+
+        const lastSegment = segments[segments.length - 1];
+
+        // If the URL ends in a file name, use the parent directory name.
+        if (lastSegment.includes(".")) {
+            return segments[segments.length - 2] || "";
+        }
+
+        return lastSegment;
+    }
+
+
+    /*
+     * Construct the localStorage key for a hunt state.
      *
      * Example:
      *     hunt:plymouthdemo:state
      */
     function getStorageKey(huntName) {
         return `hunt:${huntName}:state`;
+    }
+
+
+    /*
+     * Construct the localStorage key for a hunt event queue.
+     *
+     * Example:
+     *     hunt:plymouthdemo:events
+     */
+    function getEventStorageKey(huntName) {
+        return `hunt:${huntName}:events`;
     }
 
 
@@ -91,6 +135,66 @@ const Manager = (function () {
                 "The saved game state could not be read."
             );
         }
+    }
+
+
+    /*
+     * Load a queued event list from localStorage.
+     */
+    function loadEvents(huntName) {
+
+        const key = getEventStorageKey(huntName);
+
+        const stored = localStorage.getItem(key);
+
+        if (stored === null) {
+            return [];
+        }
+
+        try {
+            const parsed = JSON.parse(stored);
+
+            if (!Array.isArray(parsed)) {
+                throw new Error(
+                    "The saved event queue is not valid."
+                );
+            }
+
+            return parsed;
+        }
+        catch (error) {
+            throw new Error(
+                "The saved event queue could not be read."
+            );
+        }
+    }
+
+
+    /*
+     * Save a queued event list to localStorage.
+     */
+    function saveEvents(huntName, events) {
+        localStorage.setItem(
+            getEventStorageKey(huntName),
+            JSON.stringify(events)
+        );
+    }
+
+
+    /*
+     * Generate a unique event ID.
+     */
+    function generateEventId() {
+
+        if (crypto.randomUUID) {
+            return crypto.randomUUID();
+        }
+
+        return (
+            Date.now().toString(36) +
+            "-" +
+            Math.random().toString(36).substring(2, 10)
+        );
     }
 
 
@@ -142,18 +246,19 @@ const Manager = (function () {
      *
      * Example:
      *
-     *     Manager.createState("plymouthdemo", 1, "Nick");
+     *     Manager.createState(1, "Nick");
      *
      * or:
      *
-     *     Manager.createState("plymouthdemo", 1);
+     *     Manager.createState(1);
      */
-    function createState(huntName, schemaVersion, hunterName = "") {
+    function createState(schemaVersion, hunterName = "") {
 
-        // Hunt name is required.
+        const huntName = getCurrentHuntName();
+
         if (!huntName) {
             throw new Error(
-                "Cannot create game state: hunt name is required."
+                "Cannot create game state: the current page URL does not include a hunt name."
             );
         }
 
@@ -235,7 +340,7 @@ const Manager = (function () {
     /*
      * Check whether a game state exists for a hunt.
      */
-    function hasState(huntName) {
+    function hasState(huntName = getCurrentHuntName()) {
 
         return loadState(huntName) !== null;
     }
@@ -249,9 +354,15 @@ const Manager = (function () {
      *
      * Example:
      *
-     *     Manager.initialize("plymouthdemo");
+     *     Manager.initialize();
      */
-    function initialize(huntName) {
+    function initialize(huntName = getCurrentHuntName()) {
+
+        if (!huntName) {
+            throw new Error(
+                "Cannot initialize game state: the current page URL does not include a hunt name."
+            );
+        }
 
         const state = loadState(huntName);
 
@@ -264,6 +375,52 @@ const Manager = (function () {
         gameState = state;
 
         return getState();
+    }
+
+
+    // ============================================================
+    // EVENTS
+    // ============================================================
+
+    /*
+     * Store a queued analytics event.
+     *
+     * The event containing the entire game state snapshot is saved
+     * in localStorage so it can be sent to the Cloudflare Worker later.
+     *
+     * A generated event ID is included so the Worker can confirm receipt
+     * and the client can delete the event from localStorage.
+     */
+    function storeEvent(eventType) {
+
+        if (typeof eventType !== "string" || eventType.trim() === "") {
+            throw new Error(
+                "Cannot store event: event type is required."
+            );
+        }
+
+        const huntName = getCurrentHuntName();
+
+        if (!huntName) {
+            throw new Error(
+                "Cannot store event: the current page URL does not include a hunt name."
+            );
+        }
+
+        const events = loadEvents(huntName);
+
+        const event = {
+            eventId: generateEventId(),
+            eventType: eventType,
+            occurredAt: new Date().toISOString(),
+            gameState: gameState === null
+                ? null
+                : JSON.parse(JSON.stringify(gameState))
+        };
+
+        events.push(event);
+
+        saveEvents(huntName, events);
     }
 
 
@@ -583,6 +740,7 @@ const Manager = (function () {
         initialize,
         hasState,
         resetState,
+        storeEvent,
 
         // Whole state
         getState,
