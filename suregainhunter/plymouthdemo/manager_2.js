@@ -86,12 +86,16 @@ const Manager2 = (function () {
         return trimmed;
     }
 
+    function cleanSlotName(name) {
+        return normalizeSlotName(name).replace(/^!+/, "");
+    }
+
     function isSqueakySlotName(name) {
         return normalizeSlotName(name).startsWith("!");
     }
 
     function createSqueakyVersion(name) {
-        const normalized = normalizeSlotName(name);
+        const normalized = cleanSlotName(name);
 
         if (normalized.startsWith("!")) {
             return normalized;
@@ -102,7 +106,7 @@ const Manager2 = (function () {
 
     function resolveSlotReference(name) {
 
-        const normalized = normalizeSlotName(name);
+        const normalized = cleanSlotName(name);
 
         if (Object.prototype.hasOwnProperty.call(gameState, normalized)) {
             return normalized;
@@ -396,21 +400,56 @@ const Manager2 = (function () {
 
         requireState();
 
-        const normalized = normalizeSlotName(name);
+        const normalized = cleanSlotName(name);
 
         if (RESERVED_KEYS.has(normalized)) {
             return false;
         }
 
-        return Object.prototype.hasOwnProperty.call(gameState, normalized);
+        return Object.prototype.hasOwnProperty.call(gameState, normalized) ||
+            Object.prototype.hasOwnProperty.call(gameState, createSqueakyVersion(normalized));
+    }
+
+    function createSlot(kind, name) {
+
+        requireState();
+
+        const slotKind = String(kind).trim().toLowerCase();
+        const cleanedName = cleanSlotName(name);
+
+        if (slotKind !== "silent" && slotKind !== "squeaky") {
+            throw new Error("The slot kind must be either \"silent\" or \"squeaky\".");
+        }
+
+        if (RESERVED_KEYS.has(cleanedName)) {
+            throw new Error(
+                `The slot name "${cleanedName}" is reserved for game state metadata.`
+            );
+        }
+
+        const targetName = slotKind === "squeaky"
+            ? createSqueakyVersion(cleanedName)
+            : cleanedName;
+
+        if (RESERVED_KEYS.has(targetName)) {
+            throw new Error(
+                `The slot name "${targetName}" is reserved for game state metadata.`
+            );
+        }
+
+        if (!Object.prototype.hasOwnProperty.call(gameState, targetName)) {
+            gameState[targetName] = "";
+            saveState();
+        }
+
+        return targetName;
     }
 
     function getSlot(name) {
 
         requireState();
 
-        const normalized = normalizeSlotName(name);
-
+        const normalized = cleanSlotName(name);
         const resolvedName = resolveSlotReference(normalized);
 
         if (!Object.prototype.hasOwnProperty.call(gameState, resolvedName)) {
@@ -424,7 +463,7 @@ const Manager2 = (function () {
 
         requireState();
 
-        const normalized = normalizeSlotName(name);
+        const normalized = cleanSlotName(name);
 
         if (RESERVED_KEYS.has(normalized)) {
             throw new Error(
@@ -432,13 +471,15 @@ const Manager2 = (function () {
             );
         }
 
-        const targetName = isSqueakySlotName(normalized)
-            ? normalized
-            : normalized;
+        const targetName = resolveSlotReference(normalized);
 
-        const oldValue = Object.prototype.hasOwnProperty.call(gameState, targetName)
-            ? gameState[targetName]
-            : undefined;
+        if (!Object.prototype.hasOwnProperty.call(gameState, targetName)) {
+            throw new Error(
+                `The slot "${normalized}" does not exist.`
+            );
+        }
+
+        const oldValue = gameState[targetName];
 
         if (oldValue === value) {
             return value;
@@ -459,44 +500,11 @@ const Manager2 = (function () {
     // ============================================================
 
     function createSilentSlot(name) {
-
-        requireState();
-
-        const normalized = normalizeSlotName(name);
-
-        if (RESERVED_KEYS.has(normalized)) {
-            throw new Error(
-                `The slot name "${normalized}" is reserved for game state metadata.`
-            );
-        }
-
-        if (!Object.prototype.hasOwnProperty.call(gameState, normalized)) {
-            gameState[normalized] = "";
-            saveState();
-        }
-
-        return normalized;
+        return createSlot("silent", name);
     }
 
     function createSqueakySlot(name) {
-
-        requireState();
-
-        const normalized = normalizeSlotName(name);
-        const squeakyName = createSqueakyVersion(normalized);
-
-        if (RESERVED_KEYS.has(normalized) || RESERVED_KEYS.has(squeakyName)) {
-            throw new Error(
-                `The slot name "${normalized}" is reserved for game state metadata.`
-            );
-        }
-
-        if (!Object.prototype.hasOwnProperty.call(gameState, squeakyName)) {
-            gameState[squeakyName] = "";
-            saveState();
-        }
-
-        return squeakyName;
+        return createSlot("squeaky", name);
     }
 
     // ============================================================
@@ -554,6 +562,7 @@ const Manager2 = (function () {
         getStatus,
         setStatus,
 
+        createSlot,
         createSilentSlot,
         createSqueakySlot,
         getSlot,
