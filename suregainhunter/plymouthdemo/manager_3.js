@@ -14,11 +14,10 @@
         Hunt Name
         Hunt Version
         Session ID
-        Start Date
-        Start Time
+        Start Timestamp
         Player Name
-        Client Date
-        Client Time
+        Event ID (for event use)
+        Event Timestamp (for event use)
         Status
     Soft slots - These slots are created upon request
         
