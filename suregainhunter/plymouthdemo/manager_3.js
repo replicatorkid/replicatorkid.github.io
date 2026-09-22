@@ -24,8 +24,10 @@
         
   Queue - This is the buffer of state snapshots
       a function 'triggerEvent' will:
+          - Update the current date and time slots
           - Slap a copy of the current state in a slot in the queue
-          - 
+      while there are queued events
+          - try to post them to CF worked, using date and time for ID
           
 */
 
