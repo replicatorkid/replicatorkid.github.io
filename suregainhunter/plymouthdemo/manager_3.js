@@ -23,11 +23,15 @@
         
   Queue - This is the buffer of state snapshots
       a function 'triggerEvent' will:
-          - Update the current date and time slots
+          - overwrite the Event ID slot with new ID
+          - Update Event Timestamp slot
           - Slap a copy of the current state in a slot in the queue
       while there are queued events
-          - try to post them to CF worked, using date and time for ID
-          
+          - try to post them to CF worker
+          - [CF worker will try to return success, fail, or duplicate]
+          - If success returned, delete event
+          - If fail returned, leave in queu
+          - if duplicate returned, delete from queu
 */
 
 const Manager = (function () {
