@@ -316,10 +316,7 @@ const Manager = (function () {
 
             state[cleaned] = value;
             saveState();
-
-            if (isSqueakySlotName(cleaned)) {
-                queueEvent("slot_changed");
-            }
+            queueEvent("slot_changed");
 
             return value;
         }
