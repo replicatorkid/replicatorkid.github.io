@@ -12,12 +12,12 @@
   <div class="page" role="main">
     <header>
       <h1>Welcome!</h1>
-      <p>Do you have what it takes to get onto the leaderboard? These pages will take you on a trip around Plymouth. Follow them to their end to get to enter your name into the monthly leaderboard[...]
+      <p>Do you have what it takes to get onto the leaderboard? These pages will take you on a trip around Plymouth. Follow them to their end to get to enter your name into the monthly leaderboard.</p>
     </header>
 
     <section>
       <p class="warning small">
-        These webpages require that you share your phone's GPS location with them. One of the clues requires this information to function. I also collect basic usage analytics and anonymised movem[...]
+        These webpages require that you share your phone's GPS location with them. One of the clues requires this information to function. I also collect basic usage analytics and anonymised movement data.
       </p>
     </section>
 
@@ -52,10 +52,11 @@
   </nav>
 
   <!-- Manager module remains responsible for storage and state. -->
-  <script src="manager.js"></script>
+  <script src="manager_4.js"></script>
   <script>
     (function () {
       const HUNT_NAME = 'plymouthdemo';
+      const HUNT_VERSION = 1;
 
       function $(id) { return document.getElementById(id); }
 
@@ -65,8 +66,14 @@
       const status = $('status');
 
       function safeHasState() {
-        try { return Manager && typeof Manager.hasState === 'function' && Manager.hasState(HUNT_NAME); }
-        catch (e) { return false; }
+        try {
+          return Manager &&
+            typeof Manager.hasState === 'function' &&
+            Manager.hasState(HUNT_NAME, HUNT_VERSION);
+        }
+        catch (e) {
+          return false;
+        }
       }
 
       function updateUI() {
@@ -80,21 +87,21 @@
       // If a state already exists, load it and prefill the name field.
       try {
         if (safeHasState()) {
-          const st = Manager.initialize(HUNT_NAME);
-          if (st && st.hunterName) {
-            nameInput.value = st.hunterName;
+          const st = Manager.initialize(HUNT_NAME, HUNT_VERSION);
+          if (st && st.playerName) {
+            nameInput.value = st.playerName;
           }
         }
       }
       catch (e) {
-        // ignore and continue; UI will reflect that no state exists
+        // Ignore and continue; UI will reflect that no state exists.
         console.warn('Manager initialize failed:', e);
       }
 
       nameInput.addEventListener('input', updateUI);
 
       startBtn.addEventListener('click', function () {
-        // Only allow starting when there's no saved state and a name is provided.
+        // Only allow starting when there is no saved state and a name is provided.
         if (safeHasState()) {
           alert('A saved game already exists. Press Reset to clear it before starting a new session.');
           return;
@@ -107,9 +114,8 @@
         }
 
         try {
-          // Create the state and apply the hunter name immediately.
-          Manager.createState(HUNT_NAME, 1, name);
-          // Make sure UI updates.
+          // Create the state and queue the session_started snapshot.
+          Manager.startSession(HUNT_NAME, HUNT_VERSION, name);
           updateUI();
           alert('Hunt started. Good luck!');
         }
@@ -126,9 +132,9 @@
         }
 
         try {
-          // resetState requires a loaded state, so initialize first
-          Manager.initialize(HUNT_NAME);
-          Manager.resetState();
+          // resetSession requires a loaded state, so initialize first.
+          Manager.initialize(HUNT_NAME, HUNT_VERSION);
+          Manager.resetSession();
           nameInput.value = '';
           updateUI();
           alert('Saved game cleared.');
@@ -139,7 +145,7 @@
         }
       });
 
-      // Keyboard: allow Enter on the name field to attempt start
+      // Keyboard: allow Enter on the name field to attempt start.
       nameInput.addEventListener('keydown', function (ev) {
         if (ev.key === 'Enter') {
           ev.preventDefault();
@@ -147,7 +153,7 @@
         }
       });
 
-      // Initial UI state
+      // Initial UI state.
       updateUI();
     })();
   </script>
