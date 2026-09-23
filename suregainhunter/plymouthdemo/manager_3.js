@@ -43,13 +43,8 @@ const Manager = (function () {
     let gameState = null;
 
     const RESERVED_KEYS = new Set([
-        "schemaVersion",
-        "version",
-        "huntName",
-        "sessionId",
-        "startedAt",
-        "hunterName",
-        "status"
+        "huntName,
+        "
     ]);
 
     // ============================================================
@@ -57,38 +52,23 @@ const Manager = (function () {
     // ============================================================
 
     function getCurrentHuntName() {
-
-        const path = window.location.pathname;
-
-        if (!path || path === "/") {
-            return "";
-        }
-
-        const segments = path.split("/").filter(Boolean);
-
-        if (segments.length === 0) {
-            return "";
-        }
-
-        const lastSegment = segments[segments.length - 1];
-
-        if (lastSegment.includes(".")) {
-            return segments[segments.length - 2] || "";
-        }
-
-        return lastSegment;
+      // Not needed. Arg will simply be passed every time certain functions are called.
     }
 
     function getStorageKey(huntName) {
+        // Not sure this is needed. key will take the form of "sgh:huntName:huntVersion".
+        // either way I suppose I would prefer the function to be called "getStateStorageKey()."
         return `hunt:${huntName}:state`;
     }
 
     function getEventStorageKey(huntName) {
+        // Same as above. Call it "getQueueStorageKey()"
+        // But it's not 'getting' the key, exactly... it's more like building the key from know information.
         return `hunt:${huntName}:events`;
     }
 
     function saveState() {
-
+        // This makes sense to be. "Given an active gamestate, save it to the associated key in localstorage."
         if (gameState === null) {
             throw new Error("Cannot save: no game state exists.");
         }
@@ -102,7 +82,7 @@ const Manager = (function () {
     }
 
     function loadState(huntName) {
-
+        // this make sense... This function returns the gamestate, which means it will be used to fill the gamestate object provided one is stored.
         const key = getStorageKey(huntName);
         const stored = localStorage.getItem(key);
 
@@ -119,7 +99,9 @@ const Manager = (function () {
     }
 
     function loadEvents(huntName) {
-
+        // I want this to be named loadQueue().
+        //I don't understand everything in this. I suppose you have to load the queue because you can't actively read something sitting in storage.
+        //It's storage... not an active variable. Hence you have to open the box and make a copy of it before you can edit it all all... or even read. i guess.
         const key = getEventStorageKey(huntName);
         const stored = localStorage.getItem(key);
 
@@ -142,6 +124,8 @@ const Manager = (function () {
     }
 
     function saveEvents(huntName, events) {
+        // I would prefer that this be called 'saveQueue()'
+        // Naturally...
         localStorage.setItem(
             getEventStorageKey(huntName),
             JSON.stringify(events)
@@ -149,7 +133,7 @@ const Manager = (function () {
     }
 
     function generateEventId() {
-
+    //Helper function
         if (crypto.randomUUID) {
             return crypto.randomUUID();
         }
@@ -162,7 +146,7 @@ const Manager = (function () {
     }
 
     function generateSessionId() {
-
+      //Helper function
         if (crypto.randomUUID) {
             return crypto.randomUUID();
         }
@@ -175,7 +159,7 @@ const Manager = (function () {
     }
 
     function queueEvent(eventType, details = {}) {
-
+        This will need to be reworked according to the new structure.
         if (typeof eventType !== "string" || eventType.trim() === "") {
             throw new Error("Cannot store event: event type is required.");
         }
@@ -213,7 +197,7 @@ const Manager = (function () {
     // ============================================================
 
     function stateChanged(slotName, oldValue, newValue) {
-
+        // Truth be told... I'm not sure I understand when this is getting called. Probably for any occasion where a slot is being set.
         queueEvent("slot_changed", {
             slotName: slotName,
             oldValue: oldValue,
@@ -226,7 +210,8 @@ const Manager = (function () {
     // ============================================================
 
     function createState(schemaVersion, hunterName = "") {
-
+        // This function will need some reworking. It should take huntName, HuntVersion, and hunterName for arguments, and fill the rest automatically.
+        // It should not return succesfully unless all three fields are provided validly and there is no active session.
         const huntName = getCurrentHuntName();
 
         if (!huntName) {
@@ -272,11 +257,12 @@ const Manager = (function () {
     // ============================================================
 
     function hasState(huntName = getCurrentHuntName()) {
+        // Helper function.
         return loadState(huntName) !== null;
     }
 
     function initialize(huntName = getCurrentHuntName()) {
-
+        // This will need some reworking. I'm actually not sure how it differs from createState().
         if (!huntName) {
             throw new Error(
                 "Cannot initialize game state: the current page URL does not include a hunt name."
@@ -301,6 +287,7 @@ const Manager = (function () {
     // ============================================================
 
     function storeEvent(eventType, details = {}) {
+        // Not sure about this one.
         return queueEvent(eventType, details);
     }
 
@@ -311,6 +298,7 @@ const Manager = (function () {
     function getState() {
 
         if (gameState === null) {
+          // Also not very sure about this one.
             throw new Error("No game state is currently loaded.");
         }
 
@@ -362,8 +350,11 @@ const Manager = (function () {
     // SLOTS
     // ============================================================
 
+    // I want all slots - both hard and soft - to be accessible by these functions. If a page wants to reset the start time, fine. I'm the one writing the pages, anyway.
+    // Also, as we discussed, there won't be an name normalization or anything. I'll just try to follow my own naming conventions.
+  
     function slotExists(name) {
-
+        // This makes sense. Just tells you whether a slot exists.
         requireState();
 
         const normalized = cleanSlotName(name);
@@ -377,7 +368,8 @@ const Manager = (function () {
     }
 
     function createSlot(kind, name) {
-
+        // Understood. But will not need to know whether is silent or squeaky for this step.
+        // Also, is this step strictly necessary? I suppose setSlot could be used directly... though I like the idea of creating a slot and then filling it.
         requireState();
 
         const slotKind = String(kind).trim().toLowerCase();
@@ -426,7 +418,12 @@ const Manager = (function () {
     }
 
     function setSlot(name, value) {
-
+        // Again. No need to clean names, but we will have to cheeck whether the name has an exclamation point in front.
+        // If so, then it's squeaky. So set the new info into the slot, and then call queueEvent().
+        // I'm not sure if it matters whether the contents of the squeaky slot have actually changed.
+        // If player alice tries the same answer in squeaky slot three times in a row, I think I want to know that.
+        // I think it only matter that a clue page is calling setSlot() on a squeaky slot.
+        // Also, all structural data should be treated as squeaky, so we'll have to check for those slots being set by name.
         requireState();
 
         const normalized = cleanSlotName(name);
@@ -465,6 +462,7 @@ const Manager = (function () {
     // SLOT CREATION HELPERS
     // ============================================================
 
+    // These look unnecessary to me.
     function createSilentSlot(name) {
         return createSlot("silent", name);
     }
@@ -476,7 +474,10 @@ const Manager = (function () {
     // ============================================================
     // RESET
     // ============================================================
-
+    // Here's a puzzler. I want the user to be able to blank out their session.
+    // I also want to know when theat happens... So perhaps the right way to handle that is to have resetState() set status to 'reset.'
+    // and setting that slot will call queueEvent(). Then start a timer that waits long enough to probably post the event,
+    // and then wipe everything regardless when the short timer ends.
     function resetState() {
 
         requireState();
