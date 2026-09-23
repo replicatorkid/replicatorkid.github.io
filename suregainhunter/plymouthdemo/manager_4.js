@@ -18,6 +18,7 @@
         Player Name
         Event ID (for event use)
         Event Timestamp (for event use)
+        Event Type (for event use)
         Status
     Soft slots - These slots are created upon request
         
